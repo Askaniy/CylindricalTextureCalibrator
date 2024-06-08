@@ -34,6 +34,7 @@ def launch_window():
             window.start_thread(
                 lambda: aux.image_parser(preview,
                     preview_flag=True,
+                    oblateness=aux.float_parser(values['-OblatenessInput-']),
                     color_target=aux.color_parser(values['-ColorInput-']) if values['-ColorCheckbox-'] else None,
                     albedo_target=aux.float_parser(values['-AlbedoInput-']) if values['-AlbedoCheckbox-'] else None,
                     sRGB_gamma=values['-srgbGammaCheckbox-'],
@@ -48,6 +49,7 @@ def launch_window():
                 window.start_thread(
                     lambda: aux.image_parser(image,
                         save_folder=values['-SaveFolder-'],
+                        oblateness=aux.float_parser(values['-OblatenessInput-']),
                         color_target=aux.color_parser(values['-ColorInput-']) if values['-ColorCheckbox-'] else None,
                         albedo_target=aux.float_parser(values['-AlbedoInput-']) if values['-AlbedoCheckbox-'] else None,
                         sRGB_gamma=values['-srgbGammaCheckbox-'],
@@ -68,6 +70,7 @@ def launch_window():
             window.start_thread(
                 lambda: aux.image_parser(preview,
                     preview_flag=True,
+                    oblateness=aux.float_parser(values['-OblatenessInput-']),
                     color_target=aux.color_parser(values['-ColorInput-']) if values['-ColorCheckbox-'] else None,
                     albedo_target=aux.float_parser(values['-AlbedoInput-']) if values['-AlbedoCheckbox-'] else None,
                     sRGB_gamma=values['-srgbGammaCheckbox-'],

@@ -97,28 +97,41 @@ def gamma_correction(arr0: np.ndarray):
     return arr1
 
 def map_weights(shape: tuple, obl: float = 0):
-    """
-    Returns an area contribution map for a planetographic cylindrical
-    projection of an ellipsoid of rotation.
-    `obl` is oblateness of the spheroid.
-    """
-    return np.ones(shape) # stub
+    """ Returns an area contribution map for a planetographic projection of an oblate spheroid """
+    try:
+        if obl == 1:
+            # An outgrown case
+            area = np.zeros(shape[1])
+            area[0] = 1.
+            area[-1] = 1.
+        else:
+            # Array of latitudes in radians
+            phi = ((np.arange(shape[1]) + 0.5) / shape[1] - 0.5) * np.pi
+            #          centering pixels ^^^^^
+            # Eccentricity squared
+            e2 = obl * (2 - obl)
+            # Area weights based on planetographic oblate spheroid metric tensor
+            area = (1 - e2) * np.cos(phi) / (1 - e2 * np.sin(phi)**2)**2
+        return np.repeat(np.expand_dims(area, axis=0), shape[0], axis=0)
+    except Exception:
+        return np.ones(shape)
 
-def color_calibrator(arr: np.ndarray, color: np.ndarray):
+def color_calibrator(arr: np.ndarray, color: np.ndarray, obl: float = 0):
     """ Scales the channels so that the average brightnesses match the given color """
-    weights = np.repeat(np.expand_dims(map_weights(arr[0].shape), axis=0), 3, axis=0)
+    weights = np.repeat(np.expand_dims(map_weights(arr[0].shape, obl), axis=0), 3, axis=0)
     means = np.average(arr, weights=weights, axis=(1, 2), keepdims=True)
     return arr / means * color.reshape((3, 1, 1))
 
-def albedo_calibrator(arr: np.ndarray, albedo: float):
+def albedo_calibrator(arr: np.ndarray, albedo: float, obl: float = 0):
     """ Scales the channels so that the green channel brightness corresponds to the albedo """
-    green_mean = np.average(arr[1], weights=map_weights(arr[0].shape))
+    green_mean = np.average(arr[1], weights=map_weights(arr[0].shape, obl))
     return arr / green_mean * albedo
 
 def image_parser(
         img: Image,
         preview_flag: bool = False,
         save_folder: str = '',
+        oblateness: float = None,
         albedo_target: float = None,
         color_target: tuple = None,
         sRGB_gamma: bool = False,
@@ -127,24 +140,25 @@ def image_parser(
     ):
     """ Receives user input and performs processing in a parallel thread """
     log('Starting the image processing thread')
-    start_time = monotonic()
+    if not preview_flag:
+        start_time = monotonic()
     try:
         arr = img2array(img)
         if color_target is not None:
-            arr = color_calibrator(arr, color_target)
+            arr = color_calibrator(arr, color_target, oblateness)
         if albedo_target is not None:
-            arr = albedo_calibrator(arr, albedo_target)
+            arr = albedo_calibrator(arr, albedo_target, oblateness)
         if sRGB_gamma:
             arr = gamma_correction(arr)
         if custom_gamma is not None:
             arr = arr**custom_gamma
         img = array2img(arr)
-        time = monotonic() - start_time
-        speed = img.width * img.height / time
-        log(f'Processing took {time:.1f} seconds, average speed is {speed:.1f} px/sec')
         if preview_flag:
             log('Sending the resulting preview to the main thread', img)
         else:
+            time = monotonic() - start_time
+            speed = img.width * img.height / time
+            log(f'Processing took {time:.1f} seconds, average speed is {speed:.1f} px/sec')
             img.save(f'{save_folder}/CTC_{strftime("%Y-%m-%d_%H-%M-%S")}.png')
     except Exception:
         log(f'Image processing failed with {format_exc(limit=0).strip()}')

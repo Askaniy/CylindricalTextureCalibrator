@@ -27,7 +27,6 @@ def create_logger(window: sg.Window, key: str) -> Callable:
     return logger
 
 def generate_layout(img_preview_size: tuple):
-    title_font = ('arial', 12)
     button_size = 24
     browse_size = 10
 
@@ -38,32 +37,38 @@ def generate_layout(img_preview_size: tuple):
             sg.FileBrowse(size=browse_size, key='-BrowseButton-'),
         ],
         [
+            sg.Text('Oblateness (1 − b/a)'),
+            sg.Input('0', enable_events=True, size=1, key='-OblatenessInput-', expand_x=True),
+        ],
+        [sg.T('')],
+        [sg.Checkbox('Reproject from planetocentric to planetographic', enable_events=True, key='-ReprojectCheckbox-', visible=False)],
+        [
             sg.Checkbox('Calibrate by color', enable_events=True, key='-ColorCheckbox-'),
-            sg.Input('0.5 0.5 0.5', enable_events=True, key='-ColorInput-', expand_x=True)
+            sg.Input('0.5 0.5 0.5', enable_events=True, key='-ColorInput-', expand_x=True),
         ],
         [
             sg.Checkbox('Calibrate by albedo', enable_events=True, key='-AlbedoCheckbox-'),
-            sg.Input('0.5', enable_events=True, key='-AlbedoInput-', expand_x=True)
+            sg.Input('0.5', enable_events=True, key='-AlbedoInput-', expand_x=True),
         ],
         [sg.Checkbox('Apply CIE sRGB gamma correction', enable_events=True, key='-srgbGammaCheckbox-')],
         [
             sg.Checkbox('Apply custom gamma correction', enable_events=True, key='-CustomGammaCheckbox-'),
-            sg.Input('1/2.2', enable_events=True, key='-GammaInput-', expand_x=True)
+            sg.Input('1/2.2', enable_events=True, key='-GammaInput-', expand_x=True),
         ],
         [sg.T('')],
         [
             sg.Push(),
             sg.Input(enable_events=True, key='-SaveFolder-', visible=False),
             sg.FolderBrowse('Process', size=button_size, key='-ProcessButton-'),
-            sg.Push()
+            sg.Push(),
         ],
     ]
 
     column2 = [
-        [sg.Push(), sg.Text('Input preview', font=title_font, key='-InputTitle-'), sg.Push()],
+        [sg.Push(), sg.Text('Input preview', key='-InputTitle-'), sg.Push()],
         [sg.Push(), sg.Image(background_color='black', size=img_preview_size, key='-InputPreview-'), sg.Push()],
         [sg.T('')],
-        [sg.Push(), sg.Text('Output preview', font=title_font, key='-OutputTitle-'), sg.Push()],
+        [sg.Push(), sg.Text('Output preview', key='-OutputTitle-'), sg.Push()],
         [sg.Push(), sg.Image(background_color='black', size=img_preview_size, key='-OutputPreview-'), sg.Push()],
     ]
 
@@ -71,6 +76,6 @@ def generate_layout(img_preview_size: tuple):
         [
             sg.Column(column1),
             #sg.VSeperator(),
-            sg.Column(column2, expand_x=True)
+            sg.Column(column2, expand_x=True),
         ]
     ]
