@@ -9,12 +9,13 @@ def launch_window():
     # GUI configuration
     preview_size = (256, 128)
     preview_area = preview_size[0]*preview_size[1]
+    available_projections = tuple(aux.projections_dict.keys())
 
     # Launching window
     sg.ChangeLookAndFeel('MaterialDark')
     window = sg.Window(
         'Cylindrical Texture Calibrator', finalize=True, resizable=True,
-        layout=gui.generate_layout(preview_size)
+        layout=gui.generate_layout(preview_size, available_projections)
     )
 
     logger = gui.create_logger(window, '-Thread-')
@@ -35,7 +36,7 @@ def launch_window():
                 lambda: aux.image_parser(preview,
                     preview_flag=True,
                     oblateness=aux.float_parser(values['-OblatenessInput-']),
-                    reproject=values['-ReprojectCheckbox-'],
+                    projection=values['-ProjectionInput-'] if values['-ReprojectCheckbox-'] else '',
                     color_target=aux.color_parser(values['-ColorInput-']) if values['-ColorCheckbox-'] else None,
                     albedo_target=aux.float_parser(values['-AlbedoInput-']) if values['-AlbedoCheckbox-'] else None,
                     sRGB_gamma=values['-srgbGammaCheckbox-'],
@@ -51,7 +52,7 @@ def launch_window():
                     lambda: aux.image_parser(image,
                         save_folder=values['-SaveFolder-'],
                         oblateness=aux.float_parser(values['-OblatenessInput-']),
-                        reproject=values['-ReprojectCheckbox-'],
+                        projection=values['-ProjectionInput-'] if values['-ReprojectCheckbox-'] else '',
                         color_target=aux.color_parser(values['-ColorInput-']) if values['-ColorCheckbox-'] else None,
                         albedo_target=aux.float_parser(values['-AlbedoInput-']) if values['-AlbedoCheckbox-'] else None,
                         sRGB_gamma=values['-srgbGammaCheckbox-'],
@@ -73,7 +74,7 @@ def launch_window():
                 lambda: aux.image_parser(preview,
                     preview_flag=True,
                     oblateness=aux.float_parser(values['-OblatenessInput-']),
-                    reproject=values['-ReprojectCheckbox-'],
+                    projection=values['-ProjectionInput-'] if values['-ReprojectCheckbox-'] else '',
                     color_target=aux.color_parser(values['-ColorInput-']) if values['-ColorCheckbox-'] else None,
                     albedo_target=aux.float_parser(values['-AlbedoInput-']) if values['-AlbedoCheckbox-'] else None,
                     sRGB_gamma=values['-srgbGammaCheckbox-'],

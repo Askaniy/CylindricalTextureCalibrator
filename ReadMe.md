@@ -28,4 +28,4 @@ Python version 3.9 or higher is required. On Linux, you may need to replace the 
 
 - The albedo and color calibration does not use the usual texture averaging to determine initial brightness, but rather a derived precise formula that accounts for distortions in the planetographic projection.
 
-- Why was this (planetocentric to planetographic) specific coordinate transformation chosen? In the [Celestia space simulator](https://github.com/CelestiaProject/Celestia), it is the planetographic projection that is used for spheroids (for 3D models it is the planetocentric projection).
+- Why are reprojections only available to planetographic projection? In the [Celestia space simulator](https://github.com/CelestiaProject/Celestia) this is the projection used for spheroids (for 3D models it is the planetocentric projection).

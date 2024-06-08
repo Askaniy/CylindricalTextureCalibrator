@@ -73,7 +73,7 @@ def convert_to_bytes(img: Image.Image):
 
 def array2img(array: np.ndarray):
     """ Creates a Pillow image from the NumPy array """
-    return Image.fromarray((255 * array).astype('uint8').transpose())
+    return Image.fromarray(np.clip(255 * array, 0, 255).astype('uint8').transpose())
 
 def color_parser(color: str):
     """ Ensures adequate processing of user input of space-separated color """
@@ -142,11 +142,26 @@ def planetocentric2planetographic(arr0: np.ndarray, obl: float = 0.):
     arr1 = interp1d(phi0, arr0, kind='cubic', fill_value='extrapolate')(phi1)
     return arr1
 
+def equalarea2planetographic(arr0: np.ndarray, obl: float = 0.):
+    """ Reprojects the map from planetocentric to planetographic latitude system """
+    phi1 = latitudes(ceil(arr0.shape[2]))
+    phi0 = np.arcsin(phi1 * 2 / np.pi)
+    if obl != 0.:
+        phi0 = np.arctan(np.tan(phi0) / (1-obl)**2)
+    phi1_lossless = latitudes(ceil(arr0.shape[2] * np.pi * 0.5))
+    arr1 = interp1d(phi0, arr0, kind='cubic', fill_value='extrapolate')(phi1_lossless)
+    return arr1
+
+projections_dict = {
+    'planetocentric': planetocentric2planetographic,
+    'equal-area': equalarea2planetographic,
+}
+
 def image_parser(
         img: Image,
         preview_flag: bool = False,
         save_folder: str = '',
-        reproject: bool = False,
+        projection: str = '',
         oblateness: float = None,
         albedo_target: float = None,
         color_target: tuple = None,
@@ -162,8 +177,8 @@ def image_parser(
         oblateness = 0.
     try:
         arr = img2array(img)
-        if reproject:
-            arr = planetocentric2planetographic(arr, oblateness)
+        if projection != '':
+            arr = projections_dict[projection](arr, oblateness)
         if color_target is not None:
             arr = color_calibrator(arr, color_target, oblateness)
         if albedo_target is not None:

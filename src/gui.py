@@ -26,7 +26,7 @@ def create_logger(window: sg.Window, key: str) -> Callable:
         window.write_event_value((key, f'{strftime("%H:%M:%S")} {message}'), data)
     return logger
 
-def generate_layout(img_preview_size: tuple):
+def generate_layout(img_preview_size: tuple, available_projections: tuple):
     button_size = 24
     browse_size = 10
 
@@ -41,7 +41,11 @@ def generate_layout(img_preview_size: tuple):
             sg.Input('0', enable_events=True, size=1, key='-OblatenessInput-', expand_x=True),
         ],
         [sg.T('')],
-        [sg.Checkbox('Reproject from planetocentric to planetographic', enable_events=True, key='-ReprojectCheckbox-')],
+        [
+            sg.Checkbox('Reproject from', enable_events=True, key='-ReprojectCheckbox-'),
+            sg.InputCombo(available_projections, enable_events=True, key='-ProjectionInput-'),
+            sg.Text('to planetographic latitudes')
+        ],
         [
             sg.Checkbox('Calibrate by color', enable_events=True, key='-ColorCheckbox-'),
             sg.Input('0.5 0.5 0.5', enable_events=True, key='-ColorInput-', expand_x=True),
