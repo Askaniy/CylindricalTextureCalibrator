@@ -4,6 +4,7 @@ from time import strftime, monotonic
 from io import BytesIO
 import numpy as np
 from math import ceil, sqrt
+from scipy.interpolate import interp1d
 from PIL import Image
 
 
@@ -96,7 +97,16 @@ def gamma_correction(arr0: np.ndarray):
     arr1[~mask] = 1.055 * np.power(arr1[~mask], 1./2.4) - 0.055
     return arr1
 
-def map_weights(shape: tuple, obl: float = 0):
+def latitudes(y_shape: int):
+    """ Returns array of latitudes in radians """
+    return ((np.arange(y_shape) + 0.5) / y_shape - 0.5) * np.pi
+    #          centering pixels ^^^^^
+
+def extend(arr: np.ndarray, times: int):
+    """ Adds a new zero axis to the array and repeats along it the specified number of times """
+    return np.repeat(np.expand_dims(arr, axis=0), times, axis=0)
+
+def map_weights(shape: tuple, obl: float = 0.):
     """ Returns an area contribution map for a planetographic projection of an oblate spheroid """
     try:
         if obl == 1:
@@ -105,20 +115,18 @@ def map_weights(shape: tuple, obl: float = 0):
             area[0] = 1.
             area[-1] = 1.
         else:
-            # Array of latitudes in radians
-            phi = ((np.arange(shape[1]) + 0.5) / shape[1] - 0.5) * np.pi
-            #          centering pixels ^^^^^
+            phi = latitudes(shape[1])
             # Eccentricity squared
             e2 = obl * (2 - obl)
             # Area weights based on planetographic oblate spheroid metric tensor
             area = (1 - e2) * np.cos(phi) / (1 - e2 * np.sin(phi)**2)**2
-        return np.repeat(np.expand_dims(area, axis=0), shape[0], axis=0)
+        return extend(area, shape[0])
     except Exception:
         return np.ones(shape)
 
 def color_calibrator(arr: np.ndarray, color: np.ndarray, obl: float = 0):
     """ Scales the channels so that the average brightnesses match the given color """
-    weights = np.repeat(np.expand_dims(map_weights(arr[0].shape, obl), axis=0), 3, axis=0)
+    weights = extend(map_weights(arr[0].shape, obl), 3)
     means = np.average(arr, weights=weights, axis=(1, 2), keepdims=True)
     return arr / means * color.reshape((3, 1, 1))
 
@@ -127,10 +135,18 @@ def albedo_calibrator(arr: np.ndarray, albedo: float, obl: float = 0):
     green_mean = np.average(arr[1], weights=map_weights(arr[0].shape, obl))
     return arr / green_mean * albedo
 
+def planetocentric2planetographic(arr0: np.ndarray, obl: float = 0.):
+    """ Reprojects the map from planetocentric to planetographic latitude system """
+    phi1 = latitudes(arr0.shape[2])
+    phi0 = np.arctan(np.tan(phi1) / (1-obl)**2)
+    arr1 = interp1d(phi0, arr0, kind='cubic', fill_value='extrapolate')(phi1)
+    return arr1
+
 def image_parser(
         img: Image,
         preview_flag: bool = False,
         save_folder: str = '',
+        reproject: bool = False,
         oblateness: float = None,
         albedo_target: float = None,
         color_target: tuple = None,
@@ -142,8 +158,12 @@ def image_parser(
     log('Starting the image processing thread')
     if not preview_flag:
         start_time = monotonic()
+    if oblateness is None:
+        oblateness = 0.
     try:
         arr = img2array(img)
+        if reproject:
+            arr = planetocentric2planetographic(arr, oblateness)
         if color_target is not None:
             arr = color_calibrator(arr, color_target, oblateness)
         if albedo_target is not None:

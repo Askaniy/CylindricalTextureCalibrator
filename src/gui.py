@@ -41,7 +41,7 @@ def generate_layout(img_preview_size: tuple):
             sg.Input('0', enable_events=True, size=1, key='-OblatenessInput-', expand_x=True),
         ],
         [sg.T('')],
-        [sg.Checkbox('Reproject from planetocentric to planetographic', enable_events=True, key='-ReprojectCheckbox-', visible=False)],
+        [sg.Checkbox('Reproject from planetocentric to planetographic', enable_events=True, key='-ReprojectCheckbox-')],
         [
             sg.Checkbox('Calibrate by color', enable_events=True, key='-ColorCheckbox-'),
             sg.Input('0.5 0.5 0.5', enable_events=True, key='-ColorInput-', expand_x=True),
