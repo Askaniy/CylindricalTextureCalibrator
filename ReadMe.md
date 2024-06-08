@@ -24,8 +24,10 @@ Python version 3.9 or higher is required. On Linux, you may need to replace the 
 
 ## Notes
 
-- Gamma correction is an image transformation that lightens shadows and lowers contrast. It is needed to simulate the similar effect of the human eye. Household photos automatically apply gamma correction, but space images only occasionally take it into account. If in doubt which checkbox from the two in the application to choose, choose the first one, it works better in shadows.
+- Gamma correction is an image transformation that lightens shadows and lowers contrast. It is needed to simulate the similar effect of the human eye. Household photos automatically apply gamma correction, but space images only occasionally take it into account. If in doubt which checkbox from the two to choose, choose the CIE sRGB, it works better in shadows.
 
-- The albedo and color calibration does not use the usual texture averaging to determine initial brightness, but rather a derived precise formula that accounts for distortions in the planetographic projection.
+- Albedo and color calibration use a precise formula to calculate mean brightness that accounts for the distortions of planetographic projection.
 
 - Why are reprojections only available to planetographic projection? In the [Celestia space simulator](https://github.com/CelestiaProject/Celestia) this is the projection used for spheroids (for 3D models it is the planetocentric projection).
+
+- Cyclic longitude shift uses the Fourier transform, and as a consequence is subpixelized.

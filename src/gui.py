@@ -29,7 +29,6 @@ def create_logger(window: sg.Window, key: str) -> Callable:
 def generate_layout(img_preview_size: tuple, available_projections: tuple):
     button_size = 24
     browse_size = 10
-
     column1 = [
         [
             sg.Text('Select file'),
@@ -45,6 +44,10 @@ def generate_layout(img_preview_size: tuple, available_projections: tuple):
             sg.Checkbox('Reproject from', enable_events=True, key='-ReprojectCheckbox-'),
             sg.InputCombo(available_projections, enable_events=True, key='-ProjectionInput-'),
             sg.Text('to planetographic latitudes')
+        ],
+        [
+            sg.Checkbox('Longitude shift (in degrees)', enable_events=True, key='-ShiftCheckbox-'),
+            sg.Input('180', enable_events=True, key='-ShiftInput-', expand_x=True),
         ],
         [
             sg.Checkbox('Calibrate by color', enable_events=True, key='-ColorCheckbox-'),

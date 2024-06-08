@@ -135,6 +135,13 @@ def albedo_calibrator(arr: np.ndarray, albedo: float, obl: float = 0):
     green_mean = np.average(arr[1], weights=map_weights(arr[0].shape, obl))
     return arr / green_mean * albedo
 
+def subpixel_shift(arr: np.ndarray, shift: float):
+    """ Subpixel longitude shift, uses the Fast Fourier Transform """
+    arr = np.nan_to_num(arr)
+    freq = np.fft.fftfreq(arr.shape[1])[:,np.newaxis] * shift/360 * arr.shape[1]
+    kernel = np.exp(-1j*2*np.pi*freq)
+    return np.real(np.fft.ifftn(np.fft.fftn(arr, axes=(1,)) * kernel, axes=(1,)))
+
 def planetocentric2planetographic(arr0: np.ndarray, obl: float = 0.):
     """ Reprojects the map from planetocentric to planetographic latitude system """
     phi1 = latitudes(arr0.shape[2])
@@ -162,6 +169,7 @@ def image_parser(
         preview_flag: bool = False,
         save_folder: str = '',
         projection: str = '',
+        shift: float = None,
         oblateness: float = None,
         albedo_target: float = None,
         color_target: tuple = None,
@@ -179,6 +187,8 @@ def image_parser(
         arr = img2array(img)
         if projection != '':
             arr = projections_dict[projection](arr, oblateness)
+        if shift is not None:
+            arr = subpixel_shift(arr, shift)
         if color_target is not None:
             arr = color_calibrator(arr, color_target, oblateness)
         if albedo_target is not None:
