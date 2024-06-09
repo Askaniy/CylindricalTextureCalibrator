@@ -62,6 +62,7 @@ def generate_layout(img_preview_size: tuple, available_projections: tuple):
             sg.Checkbox('Apply custom gamma correction', enable_events=True, key='-CustomGammaCheckbox-'),
             sg.Input('1/2.2', enable_events=True, key='-GammaInput-', expand_x=True),
         ],
+        [sg.Checkbox('Overlay a coordinate grid', enable_events=True, key='-GridCheckbox-')],
         [sg.T('')],
         [
             sg.Push(),

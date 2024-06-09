@@ -135,6 +135,37 @@ def albedo_calibrator(arr: np.ndarray, albedo: float, obl: float = 0):
     green_mean = np.average(arr[1], weights=map_weights(arr[0].shape, obl))
     return arr / green_mean * albedo
 
+def generate_grid_layer(shape: tuple, divisions: int):
+    """
+    Draws the specified number of lines along the X-axis (and half as many along the Y-axis),
+    distributing the brightness to the pixels closest to the true line position
+    """
+    grid = np.zeros(shape)
+    x_step = shape[0] / divisions
+    # Drawing lines on X axis
+    for i in range(divisions):
+        subpixel_num = x_step * i - 0.5
+        upper_num = ceil(subpixel_num)
+        proportion = upper_num - subpixel_num
+        grid[upper_num] = 1-proportion
+        grid[upper_num-1] = proportion
+    # Drawing lines on Y axis
+    y_step = shape[1] / divisions * 2
+    for j in range(divisions//2):
+        subpixel_num = y_step * j - 0.5
+        upper_num = ceil(subpixel_num)
+        proportion = upper_num - subpixel_num
+        grid[:, upper_num] = 1-proportion
+        grid[:, upper_num-1] = proportion
+    return grid
+
+def generate_grid(shape: tuple):
+    """ Draws different colors of 90°, 30° and 15° degree grids """
+    scale90deg = extend(generate_grid_layer(shape[1:], 4), 3)  * np.reshape([1, 1, 1], (3, 1, 1))
+    scale30deg = extend(generate_grid_layer(shape[1:], 8), 3)  * np.reshape([1, 1, 0], (3, 1, 1))
+    scale15deg = extend(generate_grid_layer(shape[1:], 16), 3) * np.reshape([1, 0, 0], (3, 1, 1))
+    return scale15deg + scale30deg + scale90deg
+
 def subpixel_shift(arr: np.ndarray, shift: float):
     """ Subpixel longitude shift, uses the Fast Fourier Transform """
     arr = np.nan_to_num(arr)
@@ -149,8 +180,8 @@ def planetocentric2planetographic(arr0: np.ndarray, obl: float = 0.):
     arr1 = interp1d(phi0, arr0, kind='cubic', fill_value='extrapolate')(phi1)
     return arr1
 
-def equalarea2planetographic(arr0: np.ndarray, obl: float = 0.):
-    """ Reprojects the map from planetocentric to planetographic latitude system """
+def equal_area2planetographic(arr0: np.ndarray, obl: float = 0.):
+    """ Reprojects the map from equal-area (Lambert) to planetographic latitude system """
     phi1 = latitudes(ceil(arr0.shape[2]))
     phi0 = np.arcsin(phi1 * 2 / np.pi)
     if obl != 0.:
@@ -161,7 +192,7 @@ def equalarea2planetographic(arr0: np.ndarray, obl: float = 0.):
 
 projections_dict = {
     'planetocentric': planetocentric2planetographic,
-    'equal-area': equalarea2planetographic,
+    'equal-area': equal_area2planetographic,
 }
 
 def image_parser(
@@ -175,6 +206,7 @@ def image_parser(
         color_target: tuple = None,
         sRGB_gamma: bool = False,
         custom_gamma: float = None,
+        grid: bool = False,
         log: Callable = print
     ):
     """ Receives user input and performs processing in a parallel thread """
@@ -197,6 +229,8 @@ def image_parser(
             arr = gamma_correction(arr)
         if custom_gamma is not None:
             arr = arr**custom_gamma
+        if grid:
+            arr += generate_grid(arr.shape)
         img = array2img(arr)
         if preview_flag:
             log('Sending the resulting preview to the main thread', img)

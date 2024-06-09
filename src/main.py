@@ -42,6 +42,7 @@ def launch_window():
                     albedo_target=aux.float_parser(values['-AlbedoInput-']) if values['-AlbedoCheckbox-'] else None,
                     sRGB_gamma=values['-srgbGammaCheckbox-'],
                     custom_gamma=aux.float_parser(values['-GammaInput-']) if values['-CustomGammaCheckbox-'] else None,
+                    grid=values['-GridCheckbox-'],
                     log=logger
                 ),
                 ('-Thread-', 'End of the first preview processing thread\n')
@@ -59,6 +60,7 @@ def launch_window():
                         albedo_target=aux.float_parser(values['-AlbedoInput-']) if values['-AlbedoCheckbox-'] else None,
                         sRGB_gamma=values['-srgbGammaCheckbox-'],
                         custom_gamma=aux.float_parser(values['-GammaInput-']) if values['-CustomGammaCheckbox-'] else None,
+                        grid=values['-GridCheckbox-'],
                         log=logger
                     ),
                     ('-Thread-', 'End of the image processing thread\n')
@@ -82,6 +84,7 @@ def launch_window():
                     albedo_target=aux.float_parser(values['-AlbedoInput-']) if values['-AlbedoCheckbox-'] else None,
                     sRGB_gamma=values['-srgbGammaCheckbox-'],
                     custom_gamma=aux.float_parser(values['-GammaInput-']) if values['-CustomGammaCheckbox-'] else None,
+                    grid=values['-GridCheckbox-'],
                     log=logger
                 ),
                 ('-Thread-', 'End of the preview processing thread\n')
