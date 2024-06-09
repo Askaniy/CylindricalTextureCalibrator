@@ -1,5 +1,4 @@
 import FreeSimpleGUI as sg
-from pathlib import Path
 
 import src.gui as gui
 import src.auxiliary as aux
@@ -15,7 +14,7 @@ def launch_window():
     # Launching window
     sg.ChangeLookAndFeel('MaterialDark')
     window = sg.Window(
-        'Cylindrical Texture Calibrator', finalize=True, resizable=True,
+        'Cylindrical Texture Calibrator', icon=gui.icon, finalize=True, resizable=True,
         layout=gui.generate_layout(preview_size, available_projections)
     )
 
