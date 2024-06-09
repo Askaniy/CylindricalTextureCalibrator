@@ -198,7 +198,7 @@ projections_dict = {
 def image_parser(
         img: Image,
         preview_flag: bool = False,
-        save_folder: str = '',
+        save_file: str = '',
         projection: str = '',
         shift: float = None,
         oblateness: float = None,
@@ -210,7 +210,6 @@ def image_parser(
         log: Callable = print
     ):
     """ Receives user input and performs processing in a parallel thread """
-    log('Starting the image processing thread')
     if not preview_flag:
         start_time = monotonic()
     if oblateness is None:
@@ -233,12 +232,12 @@ def image_parser(
             arr += generate_grid(arr.shape)
         img = array2img(arr)
         if preview_flag:
-            log('Sending the resulting preview to the main thread', img)
+            log('Preview is ready', img)
         else:
             time = monotonic() - start_time
             speed = img.width * img.height / time
             log(f'Processing took {time:.1f} seconds, average speed is {speed:.1f} px/sec')
-            img.save(f'{save_folder}/CTC_{strftime("%Y-%m-%d_%H-%M-%S")}.png')
+            img.save(save_file)
     except Exception:
         log(f'Image processing failed with {format_exc(limit=0).strip()}')
         print(format_exc())

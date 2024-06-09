@@ -32,7 +32,7 @@ def generate_layout(img_preview_size: tuple, available_projections: tuple):
     column1 = [
         [
             sg.Text('Select file'),
-            sg.Input(enable_events=True, size=1, key='-OpenPath-', expand_x=True),
+            sg.Input(enable_events=True, size=1, key='-OpenFileName-', expand_x=True),
             sg.FileBrowse(size=browse_size, key='-BrowseButton-'),
         ],
         [
@@ -66,8 +66,8 @@ def generate_layout(img_preview_size: tuple, available_projections: tuple):
         [sg.T('')],
         [
             sg.Push(),
-            sg.Input(enable_events=True, key='-SaveFolder-', visible=False),
-            sg.FolderBrowse('Process', size=button_size, key='-ProcessButton-'),
+            sg.Input(enable_events=True, key='-SaveFileName-', visible=False),
+            sg.FileSaveAs('Process and save', size=button_size, key='-ProcessButton-'),
             sg.Push(),
         ],
     ]

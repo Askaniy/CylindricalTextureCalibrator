@@ -1,4 +1,5 @@
 import FreeSimpleGUI as sg
+from pathlib import Path
 
 import src.gui as gui
 import src.auxiliary as aux
@@ -29,9 +30,8 @@ def launch_window():
         if event == sg.WIN_CLOSED:
             break
 
-        elif event == '-OpenPath-':
-            image, preview = aux.image_reader(values['-OpenPath-'], preview_area)
-            window['-InputPreview-'].update(data=aux.convert_to_bytes(preview))
+        elif event == '-OpenFileName-':
+            image, preview = aux.image_reader(values['-OpenFileName-'], preview_area)
             window.start_thread(
                 lambda: aux.image_parser(preview,
                     preview_flag=True,
@@ -44,15 +44,15 @@ def launch_window():
                     custom_gamma=aux.float_parser(values['-GammaInput-']) if values['-CustomGammaCheckbox-'] else None,
                     grid=values['-GridCheckbox-'],
                     log=logger
-                ),
-                ('-Thread-', 'End of the first preview processing thread\n')
+                )
             )
+            window['-InputPreview-'].update(data=aux.convert_to_bytes(preview))
         
-        elif event == '-SaveFolder-':
+        elif event == '-SaveFileName-':
             if image is not None:
                 window.start_thread(
                     lambda: aux.image_parser(image,
-                        save_folder=values['-SaveFolder-'],
+                        save_file=values['-SaveFileName-'],
                         oblateness=aux.float_parser(values['-OblatenessInput-']),
                         projection=values['-ProjectionInput-'] if values['-ReprojectCheckbox-'] else '',
                         shift=aux.float_parser(values['-ShiftInput-']) if values['-ShiftCheckbox-'] else None,
@@ -62,8 +62,7 @@ def launch_window():
                         custom_gamma=aux.float_parser(values['-GammaInput-']) if values['-CustomGammaCheckbox-'] else None,
                         grid=values['-GridCheckbox-'],
                         log=logger
-                    ),
-                    ('-Thread-', 'End of the image processing thread\n')
+                    )
                 )
         
         # Getting messages from image processing thread
@@ -86,8 +85,7 @@ def launch_window():
                     custom_gamma=aux.float_parser(values['-GammaInput-']) if values['-CustomGammaCheckbox-'] else None,
                     grid=values['-GridCheckbox-'],
                     log=logger
-                ),
-                ('-Thread-', 'End of the preview processing thread\n')
+                )
             )
 
     window.close()
