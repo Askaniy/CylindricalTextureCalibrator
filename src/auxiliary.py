@@ -175,19 +175,19 @@ def subpixel_shift(arr: np.ndarray, shift: float):
 
 def planetocentric2planetographic(arr0: np.ndarray, obl: float = 0.):
     """ Reprojects the map from planetocentric to planetographic latitude system """
-    phi1 = latitudes(arr0.shape[2])
-    phi0 = np.arctan(np.tan(phi1) / (1-obl)**2)
+    phi0 = latitudes(arr0.shape[2])
+    phi1 = np.arctan(np.tan(phi0) * (1-obl)**2)
     arr1 = interp1d(phi0, arr0, kind='cubic', fill_value='extrapolate')(phi1)
     return arr1
 
 def equal_area2planetographic(arr0: np.ndarray, obl: float = 0.):
     """ Reprojects the map from equal-area (Lambert) to planetographic latitude system """
-    phi1 = latitudes(ceil(arr0.shape[2]))
-    phi0 = np.arcsin(phi1 * 2 / np.pi)
+    phi0 = latitudes(ceil(arr0.shape[2]))
+    phi1 = latitudes(ceil(arr0.shape[2] * 0.5 * np.pi))
+    phi1 = np.sin(phi1) * 0.5 * np.pi
     if obl != 0.:
-        phi0 = np.arctan(np.tan(phi0) / (1-obl)**2)
-    phi1_lossless = latitudes(ceil(arr0.shape[2] * np.pi * 0.5))
-    arr1 = interp1d(phi0, arr0, kind='cubic', fill_value='extrapolate')(phi1_lossless)
+        phi1 = np.arctan(np.tan(phi1) * (1-obl)**2)
+    arr1 = interp1d(phi0, arr0, kind='cubic', fill_value='extrapolate')(phi1)
     return arr1
 
 projections_dict = {
