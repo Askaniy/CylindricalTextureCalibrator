@@ -1,11 +1,11 @@
-![Header logo](logo_header.png)
+![Header logo](logo_header.webp)
 
 Astronomy-focused Python tool with a GUI to prepare texture maps of celestial bodies.
 The program automates common texture actions, most of which can't be found in graphics editors, such as reprojection and color/albedo calibration.
 
 CTC may be considered as a complement to the capabilities of [TrueColorTools](https://github.com/Askaniy/TrueColorTools): you can copy the calculated color (with gamma correction disabled in TCT) and calibrate the texture using it.
 
-![CTC screenshot](screenshot.png)
+![CTC screenshot](screenshot.webp)
 
 
 ## Installation
