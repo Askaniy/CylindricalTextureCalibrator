@@ -10,18 +10,26 @@ CTC may be considered as a complement to the capabilities of [TrueColorTools](ht
 
 ## Installation
 
-Python version 3.9 or higher is required. On Linux, you may need to replace the `python` command with `python3`.
+### Running through Python
+
+Python version 3.10 or higher is required. On Linux, you may need to replace the `python` command with `python3`.
 
 **Step Zero**: Clone the repository or download the archive using the GitHub web interface. In the console, go to the project root folder.
 
-### Simple installation
+#### Simple installation
 1. Install the dependencies with `pip install -r requirements.txt`;
 2. Execute `python -u runCTC.py`.
 
-### In virtual environment
+#### In virtual environment
 1. Create a virtual environment with `python -m venv .venv`;
 2. Install the dependencies with `.venv/bin/pip install -r requirements.txt`;
 3. Execute `.venv/bin/python -u runCTC.py`.
+
+### Executable file
+[SevenSpheres](https://github.com/SevenSpheres) compiles stable versions of CTC for Windows 8/10/11. Thus, Python is not required in this installation way.
+1. Go to [the latest release page](https://github.com/Askaniy/CylindricalTextureCalibrator/releases/latest);
+2. Download and unpack the first archive;
+3. Launch the `runCTC.exe`.
 
 
 ## Notes
