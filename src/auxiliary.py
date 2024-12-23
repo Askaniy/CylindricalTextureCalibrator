@@ -12,13 +12,23 @@ def to_supported_mode(mode: str):
     """ Corresponds the image mode of the Pillow library and supported one """
     # https://pillow.readthedocs.io/en/latest/handbook/concepts.html#concept-modes
     match mode:
-        case 'P' | 'PA' | 'RGB' | 'RGBA' | 'RGBX' | 'RGBa' | 'CMYK' | 'YCbCr' | 'LAB' | 'HSV': # 8-bit indexed color palette, alpha channels, color spaces
+        case 'P' | 'RGB' | 'RGBX' | 'CMYK' | 'YCbCr' | 'LAB' | 'HSV':
+            # 8-bit color
             return 'RGB'
-        case 'L' | 'La' | 'LA': # 8-bit grayscale
+        case 'PA' | 'RGBA' | 'RGBa':
+            # 8-bit color with alpha channel
+            return 'RGBA'
+        case 'L':
+            # 8-bit grayscale
             return 'L'
-        case 'I' | 'I;16' | 'I;16L' | 'I;16B' | 'I;16N' | 'BGR;15' | 'BGR;16' | 'BGR;24': # 32-bit grayscale
+        case 'La' | 'LA':
+            # 8-bit grayscale with alpha channel
+            return 'LA'
+        case 'I' | 'I;16' | 'I;16L' | 'I;16B' | 'I;16N':
+            # 32-bit grayscale
             return 'I'
-        case 'F': # 32-bit floating point grayscale
+        case 'F':
+            # 32-bit floating point grayscale
             return 'F'
         case _:
             print(f'Mode {mode} is not recognized. Would be processed as RGB image.')
@@ -27,7 +37,7 @@ def to_supported_mode(mode: str):
 def color_depth(mode: str):
     """ Corresponds the image mode of the Pillow library and its bitness """
     match mode:
-        case 'RGB' | 'L': # 8 bit
+        case 'RGB' | 'RGBA' | 'L' | 'LA': # 8 bit
             return 255
         case 'I' | 'F': # 32 bit
             return 65535
@@ -97,43 +107,100 @@ def gamma_correction(arr0: np.ndarray):
     arr1[~mask] = 1.055 * np.power(arr1[~mask], 1./2.4) - 0.055
     return arr1
 
-def latitudes(y_shape: int):
+def latitudes(y_len: int):
     """ Returns array of latitudes in radians """
-    return ((np.arange(y_shape) + 0.5) / y_shape - 0.5) * np.pi
-    #          centering pixels ^^^^^
+    return ((np.arange(y_len) + 0.5) / y_len - 0.5) * np.pi
+    #        centering pixels ^^^^^
 
 def extend(arr: np.ndarray, times: int):
     """ Adds a new zero axis to the array and repeats along it the specified number of times """
     return np.repeat(np.expand_dims(arr, axis=0), times, axis=0)
 
 def map_weights(shape: tuple, obl: float = 0.):
-    """ Returns an area contribution map for a planetographic projection of an oblate spheroid """
+    """
+    Returns an area contribution map for a planetographic projection of an oblate spheroid.
+    The last two values of `shape` should be X and Y lengths.
+    """
     try:
         if obl == 1:
             # An outgrown case
-            area = np.zeros(shape[1])
+            area = np.zeros(shape[-1])
             area[0] = 1.
             area[-1] = 1.
         else:
-            phi = latitudes(shape[1])
+            phi = latitudes(shape[-1])
             # Eccentricity squared
             e2 = obl * (2 - obl)
             # Area weights based on planetographic oblate spheroid metric tensor
             area = (1 - e2) * np.cos(phi) / (1 - e2 * np.sin(phi)**2)**2
-        return extend(area, shape[0])
     except Exception:
-        return np.ones(shape)
+        area = np.ones(shape[1])
+    return extend(area, shape[-2]) # along X axis
+
+def separate_alpha(arr: np.ndarray):
+    """
+    Separates image and alpha channel, handling grayscale and color images.
+    Returns None in place of the alpha channel if there is none.
+    """
+    alpha = None
+    if arr.shape[0] == 2:
+        # grayscale image
+        alpha = arr[1]
+        arr = arr[0]
+    elif arr.shape[0] == 4:
+        # color image
+        alpha = arr[3]
+        arr = arr[:3]
+    return arr, alpha
 
 def color_calibrator(arr: np.ndarray, color: np.ndarray, obl: float = 0):
-    """ Scales the channels so that the average brightnesses match the given color """
-    weights = extend(map_weights(arr[0].shape, obl), 3)
-    means = np.average(arr, weights=weights, axis=(1, 2), keepdims=True)
-    return arr / means * color.reshape((3, 1, 1))
+    """
+    Scales the channels so that the average brightnesses match the given color.
+    The alpha channel is read as a mask.
+    """
+    # Alpha channel separation
+    arr, alpha = separate_alpha(arr)
+    # Calculating cylindrical map weights
+    weights = map_weights(arr.shape, obl)
+    if alpha is not None:
+        weights *= alpha
+    weights_sum = np.sum(weights)
+    # Calculating weighted average and scaling
+    if arr.ndim == 2:
+        # if grayscale image
+        average = np.sum(arr * weights) / weights_sum
+        arr = extend(arr / average, 3)
+    else:
+        # if color image
+        average = np.sum(arr * weights[np.newaxis, ...]) / weights_sum / 3
+        arr /= average
+    # Recoloring the image
+    arr *= color.reshape((3, 1, 1))
+    # Returning alpha channel
+    if alpha is not None:
+        arr = np.vstack([arr, alpha[None]])
+    return arr
 
 def albedo_calibrator(arr: np.ndarray, albedo: float, obl: float = 0):
-    """ Scales the channels so that the green channel brightness corresponds to the albedo """
-    green_mean = np.average(arr[1], weights=map_weights(arr[0].shape, obl))
-    return arr / green_mean * albedo
+    """
+    Scales the channels so that the green channel brightness corresponds to the albedo.
+    The alpha channel is read as a mask.
+    """
+    # Alpha channel separation
+    arr, alpha = separate_alpha(arr)
+    # Calculating cylindrical map weights
+    weights = map_weights(arr.shape, obl)
+    if alpha is not None:
+        weights *= alpha
+    # Calculating weighted average
+    reference_channel = arr if arr.ndim == 2 else arr[1]
+    average = np.sum(reference_channel * weights) / np.sum(weights)
+    # Rescaling the image
+    arr = arr / average * albedo
+    # Returning alpha channel
+    if alpha is not None:
+        arr = np.vstack([arr, alpha[None]])
+    return arr
 
 def generate_grid_layer(shape: tuple, divisions: int):
     """
@@ -159,19 +226,42 @@ def generate_grid_layer(shape: tuple, divisions: int):
         grid[:, upper_num-1] = proportion
     return grid
 
-def generate_grid(shape: tuple):
+def generate_grid(shape: tuple) -> np.ndarray:
     """ Draws different colors of 90°, 30° and 15° degree grids """
-    scale90deg = extend(generate_grid_layer(shape[1:], 4), 3)  * np.reshape([1, 1, 1], (3, 1, 1))
-    scale30deg = extend(generate_grid_layer(shape[1:], 8), 3)  * np.reshape([1, 1, 0], (3, 1, 1))
-    scale15deg = extend(generate_grid_layer(shape[1:], 16), 3) * np.reshape([1, 0, 0], (3, 1, 1))
+    scale90deg = extend(generate_grid_layer(shape, 4), 3)  * np.reshape([1, 1, 1], (3, 1, 1))
+    scale30deg = extend(generate_grid_layer(shape, 8), 3)  * np.reshape([1, 1, 0], (3, 1, 1))
+    scale15deg = extend(generate_grid_layer(shape, 16), 3) * np.reshape([1, 0, 0], (3, 1, 1))
     return scale15deg + scale30deg + scale90deg
+
+def add_grid(arr: np.ndarray):
+    """ Adds a coordinate grid to the image array """
+    # Alpha channel separation
+    arr, alpha = separate_alpha(arr)
+    if arr.ndim == 2:
+        # if grayscale image
+        arr = extend(arr, 3)
+    # Adding the grid
+    grid = generate_grid(arr[0].shape)
+    mask = grid.max(axis=0)
+    arr = arr * (1 - mask) + grid * mask
+    # Returning alpha channel
+    if alpha is not None:
+        alpha = np.clip(alpha + mask, 0, 1)
+        arr = np.vstack([arr, alpha[None]])
+    return arr
+
+# Exponent constant
+_imag_2pi = -1j*2*np.pi
 
 def subpixel_shift(arr: np.ndarray, shift: float):
     """ Subpixel longitude shift, uses the Fast Fourier Transform """
+    shift /= 360 # degrees to fraction
+    # -2 is longitude axis index place (1 for color mode and 0 for grayscale)
+    x_len = arr.shape[-2]
+    freq = np.fft.fftfreq(x_len)[:, np.newaxis] * shift * x_len
+    kernel = np.exp(_imag_2pi * freq)
     arr = np.nan_to_num(arr)
-    freq = np.fft.fftfreq(arr.shape[1])[:,np.newaxis] * shift/360 * arr.shape[1]
-    kernel = np.exp(-1j*2*np.pi*freq)
-    return np.real(np.fft.ifftn(np.fft.fftn(arr, axes=(1,)) * kernel, axes=(1,)))
+    return np.real(np.fft.ifftn(np.fft.fftn(arr, axes=(-2,)) * kernel, axes=(-2,)))
 
 def planetocentric2planetographic(arr0: np.ndarray, obl: float = 0.):
     """ Reprojects the map from planetocentric to planetographic latitude system """
@@ -229,7 +319,7 @@ def image_parser(
         if custom_gamma is not None:
             arr = arr**custom_gamma
         if grid:
-            arr += generate_grid(arr.shape)
+            arr = add_grid(arr)
         img = array2img(arr)
         if preview_flag:
             log('Preview is ready', img)

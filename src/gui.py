@@ -74,10 +74,10 @@ def generate_layout(img_preview_size: tuple, available_projections: tuple):
 
     column2 = [
         [sg.Push(), sg.Text('Input preview', key='-InputTitle-'), sg.Push()],
-        [sg.Push(), sg.Image(background_color='black', size=img_preview_size, key='-InputPreview-'), sg.Push()],
+        [sg.Push(), sg.Image(background_color=None, size=img_preview_size, key='-InputPreview-'), sg.Push()],
         [sg.T('')],
         [sg.Push(), sg.Text('Output preview', key='-OutputTitle-'), sg.Push()],
-        [sg.Push(), sg.Image(background_color='black', size=img_preview_size, key='-OutputPreview-'), sg.Push()],
+        [sg.Push(), sg.Image(background_color=None, size=img_preview_size, key='-OutputPreview-'), sg.Push()],
     ]
 
     return [

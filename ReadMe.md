@@ -31,11 +31,12 @@ Cylindrical Texture Calibrator has been tested on Windows 10/11, macOS and Linux
 ## Notes
 
 - The operations are applied to the image exactly in the order in which they are listed.
-- Gamma correction is an image transformation that lightens shadows and lowers contrast. It is needed to simulate the similar effect of the human eye. Household photos automatically apply gamma correction, but space images only occasionally take it into account. If in doubt which checkbox from the two to choose, choose the CIE sRGB, it works better in shadows.
+- In calibration, the alpha channel is considered a mask. That is, transparent places do not affect the result.
 - Albedo and color calibration use a precise formula to calculate mean brightness that accounts for the distortions of planetographic projection.
 - The albedo calibration is actually a green channel calibration. This is the best approximation that can be made without other spectral data.
 - Why are reprojections only available to planetographic projection? In the [Celestia space simulator](https://github.com/CelestiaProject/Celestia) this is the projection used for spheroids (for 3D models it is the planetocentric projection).
 - Cyclic longitude shift uses the Fourier transform, and as a consequence is subpixelized.
+- Gamma correction is an image transformation that lightens shadows and lowers contrast. It is needed to simulate the similar effect of the human eye. Household photos automatically apply gamma correction, but space images only occasionally take it into account. If in doubt which checkbox from the two to choose, choose the CIE sRGB, it works better in shadows.
 - To de-apply standard gamma correction, you can use "Apply custom gamma correction" item with value `2.2`. But note that every gamma correction operation results in data loss.
 
 My thanks to *arbodox* for the creation of the project logo.
