@@ -1,6 +1,6 @@
 from typing import Callable
 from traceback import format_exc
-from time import strftime, monotonic
+from time import monotonic
 from io import BytesIO
 import numpy as np
 from math import ceil, sqrt

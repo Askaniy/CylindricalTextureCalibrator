@@ -11,10 +11,14 @@ def launch_window():
     preview_area = preview_size[0]*preview_size[1]
     available_projections = tuple(aux.projections_dict.keys())
 
+    # Loading the icon
+    with open('src/images/icon', 'rb') as file:
+        icon = file.read()
+
     # Launching window
-    sg.ChangeLookAndFeel('MaterialDark')
+    sg.theme('MaterialDark')
     window = sg.Window(
-        'Cylindrical Texture Calibrator', icon=gui.icon, finalize=True, resizable=True,
+        'Cylindrical Texture Calibrator', icon=icon, finalize=True, resizable=True,
         layout=gui.generate_layout(preview_size, available_projections)
     )
 
