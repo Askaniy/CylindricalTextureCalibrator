@@ -164,16 +164,15 @@ def color_calibrator(arr: np.ndarray, color: np.ndarray, obl: float = 0):
     weights = map_weights(arr.shape, obl)
     if alpha is not None:
         weights *= alpha
-    weights_sum = np.sum(weights)
     # Calculating weighted average and scaling
     if arr.ndim == 2:
         # if grayscale image
-        average = np.sum(arr * weights) / weights_sum
+        average = np.sum(arr * weights) / weights.sum()
         arr = extend(arr / average, 3)
     else:
         # if color image
-        average = np.sum(arr * weights[np.newaxis, ...]) / weights_sum / 3
-        arr /= average
+        average = np.sum(arr * weights[np.newaxis, ...], axis=(1, 2)) / weights.sum()
+        arr /= average.reshape((3, 1, 1))
     # Recoloring the image
     arr *= color.reshape((3, 1, 1))
     # Returning alpha channel
@@ -194,7 +193,7 @@ def albedo_calibrator(arr: np.ndarray, albedo: float, obl: float = 0):
         weights *= alpha
     # Calculating weighted average
     reference_channel = arr if arr.ndim == 2 else arr[1]
-    average = np.sum(reference_channel * weights) / np.sum(weights)
+    average = np.sum(reference_channel * weights) / weights.sum()
     # Rescaling the image
     arr = arr / average * albedo
     # Returning alpha channel
@@ -327,7 +326,10 @@ def image_parser(
             time = monotonic() - start_time
             speed = img.width * img.height / time
             log(f'Processing took {time:.1f} seconds, average speed is {speed:.1f} px/sec')
-            img.save(save_file)
+            try:
+                img.save(save_file)
+            except ValueError:
+                img.save(save_file + '.png')
     except Exception:
         log(f'Image processing failed with {format_exc(limit=0).strip()}')
         print(format_exc())
