@@ -45,7 +45,7 @@ def color_depth(mode: str):
             print(f'Mode {mode} is not supported. Would be processed as 8-bit image.')
             return 255
 
-def img2array(img: Image.Image):
+def img2array(img: Image.Image) -> np.ndarray:
     """
     Converting a Pillow image to a numpy array
     1.5-2.5 times faster than np.array() and np.asarray()
@@ -66,7 +66,7 @@ def img2array(img: Image.Image):
         raise RuntimeError(f'encoder error {s} in tobytes')
     return np.transpose(data.astype('float64') / color_depth(img.mode))
 
-def image_reader(file: str, preview_area: tuple) -> np.ndarray:
+def image_reader(file: str, preview_area: int) -> tuple[Image.Image, Image.Image]:
     """ Imports spectral data from a RGB image """
     img = Image.open(file)
     img = img.convert(to_supported_mode(img.mode))
@@ -74,32 +74,32 @@ def image_reader(file: str, preview_area: tuple) -> np.ndarray:
     preview = img.resize((img.width // factor, img.height // factor), Image.Resampling.NEAREST)
     return img, preview
 
-def convert_to_bytes(img: Image.Image):
+def img2bytes(img: Image.Image) -> bytes:
     """ Prepares PIL's image to be displayed in the window """
     bio = BytesIO()
     img.save(bio, format='png')
     del img
     return bio.getvalue()
 
-def array2img(array: np.ndarray):
+def array2img(array: np.ndarray) -> Image.Image:
     """ Creates a Pillow image from the NumPy array """
-    return Image.fromarray(np.clip(255 * array, 0, 255).astype('uint8').transpose())
+    return Image.fromarray(np.round(np.clip(array, 0, 1) * 255).astype('uint8').transpose())
 
-def color_parser(color: str):
+def color_parser(color: str) -> np.ndarray | None:
     """ Ensures adequate processing of user input of space-separated color """
     try:
         return np.array(color.split(), dtype='float')
     except Exception:
         return None
 
-def float_parser(string: str):
+def float_parser(string: str) -> float | None:
     """ Ensures adequate processing of user input of float value """
     try:
         return eval(string, None)
     except Exception:
         return None
 
-def gamma_correction(arr0: np.ndarray):
+def gamma_correction(arr0: np.ndarray) -> np.ndarray:
     """ Applies gamma correction in CIE sRGB implementation to the array """
     arr1 = np.copy(arr0)
     mask = arr0 < 0.0031308
@@ -137,7 +137,7 @@ def map_weights(shape: tuple, obl: float = 0.):
         area = np.ones(shape[1])
     return extend(area, shape[-2]) # along X axis
 
-def separate_alpha(arr: np.ndarray):
+def separate_alpha(arr: np.ndarray) -> tuple[np.ndarray, np.ndarray | None]:
     """
     Separates image and alpha channel, handling grayscale and color images.
     Returns None in place of the alpha channel if there is none.
@@ -180,7 +180,7 @@ def color_calibrator(arr: np.ndarray, color: np.ndarray, obl: float = 0):
         arr = np.vstack([arr, alpha[None]])
     return arr
 
-def albedo_calibrator(arr: np.ndarray, albedo: float, obl: float = 0):
+def albedo_calibrator(arr: np.ndarray, albedo: float, obl: float = 0) -> np.ndarray:
     """
     Scales the channels so that the green channel brightness corresponds to the albedo.
     The alpha channel is read as a mask.
@@ -201,7 +201,7 @@ def albedo_calibrator(arr: np.ndarray, albedo: float, obl: float = 0):
         arr = np.vstack([arr, alpha[None]])
     return arr
 
-def generate_grid_layer(shape: tuple, divisions: int):
+def generate_grid_layer(shape: tuple, divisions: int) -> np.ndarray:
     """
     Draws the specified number of lines along the X-axis (and half as many along the Y-axis),
     distributing the brightness to the pixels closest to the true line position
@@ -232,7 +232,7 @@ def generate_grid(shape: tuple) -> np.ndarray:
     scale15deg = extend(generate_grid_layer(shape, 16), 3) * np.reshape([1, 0, 0], (3, 1, 1))
     return scale15deg + scale30deg + scale90deg
 
-def add_grid(arr: np.ndarray):
+def add_grid(arr: np.ndarray) -> np.ndarray:
     """ Adds a coordinate grid to the image array """
     # Alpha channel separation
     arr, alpha = separate_alpha(arr)
@@ -285,16 +285,17 @@ projections_dict = {
 }
 
 def image_parser(
-        img: Image,
+        img: Image.Image,
         preview_flag: bool = False,
         save_file: str = '',
         projection: str = '',
         shift: float = None,
         oblateness: float = None,
         albedo_target: float = None,
-        color_target: tuple = None,
+        color_target: np.ndarray = None,
         sRGB_gamma: bool = False,
         custom_gamma: float = None,
+        maximize_brightness: bool = False,
         grid: bool = False,
         log: Callable = print
     ):
@@ -316,7 +317,9 @@ def image_parser(
         if sRGB_gamma:
             arr = gamma_correction(arr)
         if custom_gamma is not None:
-            arr = arr**custom_gamma
+            arr **= custom_gamma
+        if maximize_brightness and arr.max() != 0:
+            arr /= arr.max()
         if grid:
             arr = add_grid(arr)
         img = array2img(arr)

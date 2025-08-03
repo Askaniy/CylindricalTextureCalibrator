@@ -45,12 +45,13 @@ def launch_window():
                     albedo_target=aux.float_parser(values['-AlbedoInput-']) if values['-AlbedoCheckbox-'] else None,
                     sRGB_gamma=values['-srgbGammaCheckbox-'],
                     custom_gamma=aux.float_parser(values['-GammaInput-']) if values['-CustomGammaCheckbox-'] else None,
+                    maximize_brightness=values['-MaximizeBrightnessCheckbox-'],
                     grid=values['-GridCheckbox-'],
                     log=logger
                 )
             )
-            window['-InputPreview-'].update(data=aux.convert_to_bytes(preview))
-        
+            window['-InputPreview-'].update(data=aux.img2bytes(preview))
+
         elif event == '-SaveFileName-':
             if image is not None:
                 window.start_thread(
@@ -63,17 +64,18 @@ def launch_window():
                         albedo_target=aux.float_parser(values['-AlbedoInput-']) if values['-AlbedoCheckbox-'] else None,
                         sRGB_gamma=values['-srgbGammaCheckbox-'],
                         custom_gamma=aux.float_parser(values['-GammaInput-']) if values['-CustomGammaCheckbox-'] else None,
+                        maximize_brightness=values['-MaximizeBrightnessCheckbox-'],
                         grid=values['-GridCheckbox-'],
                         log=logger
                     )
                 )
-        
+
         # Getting messages from image processing thread
         elif event[0] == '-Thread-':
             print(event[1])
             if values[event] is not None:
-                window['-OutputPreview-'].update(data=aux.convert_to_bytes(values[event]))
-        
+                window['-OutputPreview-'].update(data=aux.img2bytes(values[event]))
+
         # Preview processing
         elif preview is not None:
             window.start_thread(
@@ -86,6 +88,7 @@ def launch_window():
                     albedo_target=aux.float_parser(values['-AlbedoInput-']) if values['-AlbedoCheckbox-'] else None,
                     sRGB_gamma=values['-srgbGammaCheckbox-'],
                     custom_gamma=aux.float_parser(values['-GammaInput-']) if values['-CustomGammaCheckbox-'] else None,
+                    maximize_brightness=values['-MaximizeBrightnessCheckbox-'],
                     grid=values['-GridCheckbox-'],
                     log=logger
                 )
