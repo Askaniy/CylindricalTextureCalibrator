@@ -5,7 +5,7 @@ The program automates common texture actions, most of which can't be found in gr
 
 CTC may be considered as a complement to the capabilities of [TrueColorTools](https://github.com/Askaniy/TrueColorTools): you can copy the calculated color (with gamma correction disabled in TCT) and calibrate the texture using it.
 
-![CTC screenshot](screenshot.webp)
+![CTC screenshot](screenshot.png)
 
 
 ## Installation
