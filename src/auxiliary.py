@@ -13,22 +13,22 @@ def to_supported_mode(mode: str):
     # https://pillow.readthedocs.io/en/latest/handbook/concepts.html#concept-modes
     match mode:
         case 'P' | 'RGB' | 'RGBX' | 'CMYK' | 'YCbCr' | 'LAB' | 'HSV':
-            # 8-bit color
+            # 8-bit int color
             return 'RGB'
         case 'PA' | 'RGBA' | 'RGBa':
-            # 8-bit color with alpha channel
+            # 8-bit int color with alpha channel
             return 'RGBA'
         case 'L':
-            # 8-bit grayscale
+            # 8-bit int grayscale
             return 'L'
         case 'La' | 'LA':
-            # 8-bit grayscale with alpha channel
+            # 8-bit int grayscale with alpha channel
             return 'LA'
         case 'I' | 'I;16' | 'I;16L' | 'I;16B' | 'I;16N':
-            # 32-bit grayscale
+            # 32-bit int grayscale
             return 'I'
         case 'F':
-            # 32-bit floating point grayscale
+            # 32-bit float grayscale
             return 'F'
         case _:
             print(f'Mode {mode} is not recognized. Would be processed as RGB image.')
@@ -37,10 +37,15 @@ def to_supported_mode(mode: str):
 def color_depth(mode: str):
     """ Corresponds the image mode of the Pillow library and its bitness """
     match mode:
-        case 'RGB' | 'RGBA' | 'L' | 'LA': # 8 bit
+        case 'RGB' | 'L':
+            # 8-bit int
             return 255
-        case 'I' | 'F': # 32 bit
+        case 'I':
+            # 32-bit int
             return 65535
+        case 'F':
+            # 32-bit float
+            return 1
         case _:
             print(f'Mode {mode} is not supported. Would be processed as 8-bit image.')
             return 255
@@ -95,7 +100,7 @@ def color_parser(color: str) -> np.ndarray | None:
 def float_parser(string: str) -> float | None:
     """ Ensures adequate processing of user input of float value """
     try:
-        return eval(string, None)
+        return float(eval(string, None))
     except Exception:
         return None
 
