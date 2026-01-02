@@ -9,6 +9,8 @@ def launch_window():
     # GUI configuration
     preview_size = (256, 128)
     preview_area = preview_size[0]*preview_size[1]
+    is_cylindrical_map = True
+    is_latitude_converted = False
     available_projections = tuple(aux.projections_dict.keys())
 
     # Loading the icon
@@ -19,7 +21,7 @@ def launch_window():
     sg.theme('MaterialDark')
     window = sg.Window(
         'Cylindrical Texture Calibrator', icon=icon, finalize=True, resizable=True,
-        layout=gui.generate_layout(preview_size, available_projections)
+        layout=gui.generate_layout(preview_size, available_projections, is_cylindrical_map, is_latitude_converted)
     )
 
     logger = gui.create_logger(window, '-Thread-')
@@ -33,18 +35,30 @@ def launch_window():
         if event == sg.WIN_CLOSED:
             break
 
+        # The checkbox causes updates for GUI elements
+        # LatitudeSystem is used only if the input is a cylindrical map
+        # Oblateness is used only if the latitude system needs convertion to planetographic
+        elif event in ('-IsCylindricalMap-', '-LatitudeSystemInput-'):
+            is_cylindrical_map = values['-IsCylindricalMap-']
+            is_latitude_converted = is_cylindrical_map and (values['-LatitudeSystemInput-'] is not available_projections[0])
+            window['-LatitudeSystemText-'].update(text_color=gui.text_colors[not is_cylindrical_map])
+            window['-OblatenessText-'].update(text_color=gui.text_colors[not is_latitude_converted])
+            window['-OblatenessInput-'].update(disabled=not is_latitude_converted)
+            window['-PlanetographicLatitudesText-'].update(gui.planetographic_latitudes_texts[is_latitude_converted])
+
+        # Opening a file starts processing thread
         elif event == '-OpenFileName-':
             image, preview = aux.image_reader(values['-OpenFileName-'], preview_area)
             window.start_thread(
                 lambda: aux.image_parser(preview,
                     preview_flag=True,
                     oblateness=aux.float_parser(values['-OblatenessInput-']),
-                    projection=values['-ProjectionInput-'] if values['-ReprojectCheckbox-'] else '',
+                    projection=values['-LatitudeSystemInput-'],
                     shift=aux.float_parser(values['-ShiftInput-']) if values['-ShiftCheckbox-'] else None,
                     color_target=aux.color_parser(values['-ColorInput-']) if values['-ColorCheckbox-'] else None,
                     albedo_target=aux.float_parser(values['-AlbedoInput-']) if values['-AlbedoCheckbox-'] else None,
                     sRGB_gamma=values['-srgbGammaCheckbox-'],
-                    custom_gamma=aux.float_parser(values['-GammaInput-']) if values['-CustomGammaCheckbox-'] else None,
+                    #custom_gamma=aux.float_parser(values['-GammaInput-']) if values['-CustomGammaCheckbox-'] else None,
                     maximize_brightness=values['-MaximizeBrightnessCheckbox-'],
                     grid=values['-GridCheckbox-'],
                     log=logger
@@ -58,12 +72,12 @@ def launch_window():
                     lambda: aux.image_parser(image,
                         save_file=values['-SaveFileName-'],
                         oblateness=aux.float_parser(values['-OblatenessInput-']),
-                        projection=values['-ProjectionInput-'] if values['-ReprojectCheckbox-'] else '',
+                        projection=values['-LatitudeSystemInput-'],
                         shift=aux.float_parser(values['-ShiftInput-']) if values['-ShiftCheckbox-'] else None,
                         color_target=aux.color_parser(values['-ColorInput-']) if values['-ColorCheckbox-'] else None,
                         albedo_target=aux.float_parser(values['-AlbedoInput-']) if values['-AlbedoCheckbox-'] else None,
                         sRGB_gamma=values['-srgbGammaCheckbox-'],
-                        custom_gamma=aux.float_parser(values['-GammaInput-']) if values['-CustomGammaCheckbox-'] else None,
+                        #custom_gamma=aux.float_parser(values['-GammaInput-']) if values['-CustomGammaCheckbox-'] else None,
                         maximize_brightness=values['-MaximizeBrightnessCheckbox-'],
                         grid=values['-GridCheckbox-'],
                         log=logger
@@ -82,12 +96,12 @@ def launch_window():
                 lambda: aux.image_parser(preview,
                     preview_flag=True,
                     oblateness=aux.float_parser(values['-OblatenessInput-']),
-                    projection=values['-ProjectionInput-'] if values['-ReprojectCheckbox-'] else '',
+                    projection=values['-LatitudeSystemInput-'],
                     shift=aux.float_parser(values['-ShiftInput-']) if values['-ShiftCheckbox-'] else None,
                     color_target=aux.color_parser(values['-ColorInput-']) if values['-ColorCheckbox-'] else None,
                     albedo_target=aux.float_parser(values['-AlbedoInput-']) if values['-AlbedoCheckbox-'] else None,
                     sRGB_gamma=values['-srgbGammaCheckbox-'],
-                    custom_gamma=aux.float_parser(values['-GammaInput-']) if values['-CustomGammaCheckbox-'] else None,
+                    #custom_gamma=aux.float_parser(values['-GammaInput-']) if values['-CustomGammaCheckbox-'] else None,
                     maximize_brightness=values['-MaximizeBrightnessCheckbox-'],
                     grid=values['-GridCheckbox-'],
                     log=logger

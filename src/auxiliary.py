@@ -267,6 +267,10 @@ def subpixel_shift(arr: np.ndarray, shift: float):
     arr = np.nan_to_num(arr)
     return np.real(np.fft.ifftn(np.fft.fftn(arr, axes=(-2,)) * kernel, axes=(-2,)))
 
+def planetographic2planetographic(arr0: np.ndarray, _):
+    """ Does nothing """
+    return arr0
+
 def planetocentric2planetographic(arr0: np.ndarray, obl: float = 0.):
     """ Reprojects the map from planetocentric to planetographic latitude system """
     phi0 = latitudes(arr0.shape[2])
@@ -285,6 +289,7 @@ def equal_area2planetographic(arr0: np.ndarray, obl: float = 0.):
     return arr1
 
 projections_dict = {
+    'planetographic': planetographic2planetographic,
     'planetocentric': planetocentric2planetographic,
     'equal-area': equal_area2planetographic,
 }
@@ -299,7 +304,7 @@ def image_parser(
         albedo_target: float = None,
         color_target: np.ndarray = None,
         sRGB_gamma: bool = False,
-        custom_gamma: float = None,
+        #custom_gamma: float = None,
         maximize_brightness: bool = False,
         grid: bool = False,
         log: Callable = print
@@ -311,8 +316,7 @@ def image_parser(
         oblateness = 0.
     try:
         arr = img2array(img)
-        if projection != '':
-            arr = projections_dict[projection](arr, oblateness)
+        arr = projections_dict[projection](arr, oblateness)
         if shift is not None:
             arr = subpixel_shift(arr, shift)
         if color_target is not None:
@@ -321,8 +325,8 @@ def image_parser(
             arr = albedo_calibrator(arr, albedo_target, oblateness)
         if sRGB_gamma:
             arr = gamma_correction(arr)
-        if custom_gamma is not None:
-            arr **= custom_gamma
+        #if custom_gamma is not None:
+        #    arr **= custom_gamma
         if maximize_brightness and arr.max() != 0:
             arr /= arr.max()
         if grid:

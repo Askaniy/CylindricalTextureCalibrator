@@ -10,6 +10,7 @@ highlight_color = '#5A5A5A'
 bg_color = '#333333'
 inputON_color = '#424242'
 inputOFF_color = '#3A3A3A'
+text_colors = (text_color, muted_color)
 
 # FreeSimpleGUI custom theme
 sg.LOOK_AND_FEEL_TABLE['MaterialDark'] = {
@@ -20,50 +21,99 @@ sg.LOOK_AND_FEEL_TABLE['MaterialDark'] = {
 }
 
 
+planetographic_latitudes_texts = ('', '(converted to planetographic latitudes)')
+
 def create_logger(window: sg.Window, key: str) -> Callable:
     """ Creates a function that sends messages to the window main thread """
     def logger(message: str, data=None):
         window.write_event_value((key, f'{strftime("%H:%M:%S")} {message}'), data)
     return logger
 
-def generate_layout(img_preview_size: tuple, available_projections: tuple):
+def generate_layout(
+        img_preview_size: tuple[int, int],
+        available_projections: tuple[str, ...],
+        is_cylindrical_map: bool,
+        is_latitude_converted: bool
+    ):
     button_size = 24
     browse_size = 10
-    column1 = [
+    column0 = [
+        [sg.Push(), sg.Text('Input preview', key='-InputTitle-'), sg.Push()],
         [
-            sg.Text('Select file'),
+            #sg.Text('Select file'),
             sg.Input(enable_events=True, size=1, key='-OpenFileName-', expand_x=True),
             sg.FileBrowse(size=browse_size, initial_folder='..', key='-BrowseButton-'),
         ],
+        [sg.Push(), sg.Image(background_color=None, size=img_preview_size, key='-InputPreview-'), sg.Push()],
         [
-            sg.Text('Oblateness (1 − b/a)'),
-            sg.Input('0', enable_events=True, size=1, key='-OblatenessInput-', expand_x=True),
+            sg.Push(),
+            sg.Text('RGB ='),
+            sg.Input(
+                '(NaN, NaN, NaN)', size=12,
+                readonly=True, disabled_readonly_background_color=inputOFF_color,
+                key='-InputRGB-', expand_x=True
+            ),
+            sg.Push()
         ],
         [sg.T('')],
+        [sg.Checkbox('Is gamma corrected (CIE sRGB)', enable_events=True, key='-IsGammaCorrected-')],
+        [sg.Checkbox('Is a cylindrical map', default=is_cylindrical_map, enable_events=True, key='-IsCylindricalMap-')],
         [
-            sg.Checkbox('Reproject from', enable_events=True, key='-ReprojectCheckbox-'),
-            sg.InputCombo(available_projections, enable_events=True, key='-ProjectionInput-'),
-            sg.Text('to planetographic latitudes')
+            sg.Text('Latitude system:', text_color=text_colors[not is_cylindrical_map], key='-LatitudeSystemText-'),
+            sg.Combo(available_projections, default_value=available_projections[0], enable_events=True, key='-LatitudeSystemInput-'),
         ],
         [
+            sg.Text('Oblateness (1 − b/a)', text_color=text_colors[not is_latitude_converted], key='-OblatenessText-'),
+            sg.Input(
+                '0', enable_events=True, size=12,
+                disabled=not is_latitude_converted, disabled_readonly_background_color=inputOFF_color,
+                disabled_readonly_text_color=muted_color, key='-OblatenessInput-', expand_x=True
+            ),
+        ],
+    ]
+    column1 = [
+        [sg.Push(), sg.Text('Processing', key='-ProcessingTitle-'), sg.Push()],
+        [sg.T('')],
+        [
             sg.Checkbox('Longitude shift (in degrees)', enable_events=True, key='-ShiftCheckbox-'),
-            sg.Input('180', enable_events=True, key='-ShiftInput-', expand_x=True),
+            sg.Input('180', size=12, enable_events=True, key='-ShiftInput-', expand_x=True),
         ],
         [
             sg.Checkbox('Calibrate by color', enable_events=True, key='-ColorCheckbox-'),
-            sg.Input('0.5 0.5 0.5', enable_events=True, key='-ColorInput-', expand_x=True),
+            sg.Input('0.5 0.5 0.5', size=12, enable_events=True, key='-ColorInput-', expand_x=True),
         ],
         [
             sg.Checkbox('Calibrate by albedo', enable_events=True, key='-AlbedoCheckbox-'),
-            sg.Input('0.5', enable_events=True, key='-AlbedoInput-', expand_x=True),
+            sg.Input('0.5', size=12, enable_events=True, key='-AlbedoInput-', expand_x=True),
         ],
-        [sg.Checkbox('Apply CIE sRGB gamma correction', enable_events=True, key='-srgbGammaCheckbox-')],
-        [
-            sg.Checkbox('Apply custom gamma correction', enable_events=True, key='-CustomGammaCheckbox-'),
-            sg.Input('1/2.2', enable_events=True, key='-GammaInput-', expand_x=True),
-        ],
-        [sg.Checkbox('Maximize brightness', enable_events=True, key='-MaximizeBrightnessCheckbox-')],
         [sg.Checkbox('Overlay a coordinate grid', enable_events=True, key='-GridCheckbox-')],
+        [sg.T('')],
+        [sg.Checkbox('Apply CIE sRGB gamma correction', enable_events=True, key='-srgbGammaCheckbox-')],
+        #[
+        #    sg.Checkbox('Apply custom gamma correction', enable_events=True, key='-CustomGammaCheckbox-'),
+        #    sg.Input('1/2.2', size=12, enable_events=True, key='-GammaInput-', expand_x=True),
+        #],
+        [sg.Checkbox('Maximize brightness', enable_events=True, key='-MaximizeBrightnessCheckbox-')],
+    ]
+
+    column2 = [
+        [sg.Push(), sg.Text('Output preview', key='-OutputTitle-'), sg.Push()],
+        [
+            sg.Push(),
+            sg.Text(planetographic_latitudes_texts[is_latitude_converted], key='-PlanetographicLatitudesText-'),
+            sg.Push()
+        ],
+        [sg.Push(), sg.Image(background_color=None, size=img_preview_size, key='-OutputPreview-'), sg.Push()],
+        [
+            sg.Push(),
+            sg.Text('RGB ='),
+            sg.Input(
+                '(NaN, NaN, NaN)', size=12,
+                readonly=True, disabled_readonly_background_color=inputOFF_color,
+                key='-OutputRGB-', expand_x=True
+            ),
+            sg.Push()
+        ],
         [sg.T('')],
         [
             sg.Push(),
@@ -73,18 +123,12 @@ def generate_layout(img_preview_size: tuple, available_projections: tuple):
         ],
     ]
 
-    column2 = [
-        [sg.Push(), sg.Text('Input preview', key='-InputTitle-'), sg.Push()],
-        [sg.Push(), sg.Image(background_color=None, size=img_preview_size, key='-InputPreview-'), sg.Push()],
-        [sg.T('')],
-        [sg.Push(), sg.Text('Output preview', key='-OutputTitle-'), sg.Push()],
-        [sg.Push(), sg.Image(background_color=None, size=img_preview_size, key='-OutputPreview-'), sg.Push()],
-    ]
-
     return [
         [
-            sg.Column(column1),
-            #sg.VSeperator(),
-            sg.Column(column2, expand_x=True),
+            sg.Column(column0, vertical_alignment='top'),
+            sg.VSeperator(),
+            sg.Column(column1, vertical_alignment='top'),
+            sg.VSeperator(),
+            sg.Column(column2, vertical_alignment='top'),
         ]
     ]
