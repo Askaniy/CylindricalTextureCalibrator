@@ -31,9 +31,10 @@ def create_logger(window: sg.Window, key: str) -> Callable:
 
 def generate_layout(
         img_preview_size: tuple[int, int],
-        available_projections: tuple[str, ...],
+        latitude_systems: tuple[str, ...],
         is_cylindrical_map: bool,
-        is_latitude_converted: bool
+        is_latitude_converted: bool,
+        oblateness: int|float
     ):
     button_size = 24
     browse_size = 10
@@ -47,9 +48,8 @@ def generate_layout(
         [sg.Push(), sg.Image(background_color=None, size=img_preview_size, key='-InputPreview-'), sg.Push()],
         [
             sg.Push(),
-            sg.Text('RGB ='),
             sg.Input(
-                '(NaN, NaN, NaN)', size=12,
+                'RGB = NaN, NaN, NaN', size=12,
                 readonly=True, disabled_readonly_background_color=inputOFF_color,
                 key='-InputRGB-', expand_x=True
             ),
@@ -60,12 +60,12 @@ def generate_layout(
         [sg.Checkbox('Is a cylindrical map', default=is_cylindrical_map, enable_events=True, key='-IsCylindricalMap-')],
         [
             sg.Text('Latitude system:', text_color=text_colors[not is_cylindrical_map], key='-LatitudeSystemText-'),
-            sg.Combo(available_projections, default_value=available_projections[0], enable_events=True, key='-LatitudeSystemInput-'),
+            sg.Combo(latitude_systems, default_value=latitude_systems[0], enable_events=True, key='-LatitudeSystemInput-'),
         ],
         [
             sg.Text('Oblateness (1 − b/a)', text_color=text_colors[not is_latitude_converted], key='-OblatenessText-'),
             sg.Input(
-                '0', enable_events=True, size=12,
+                str(oblateness), enable_events=True, size=12,
                 disabled=not is_latitude_converted, disabled_readonly_background_color=inputOFF_color,
                 disabled_readonly_text_color=muted_color, key='-OblatenessInput-', expand_x=True
             ),
