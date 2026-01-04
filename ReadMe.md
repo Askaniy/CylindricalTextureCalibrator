@@ -19,7 +19,7 @@ Cylindrical Texture Calibrator works on Windows and Linux (the GUI library might
 2. Open the console in the project root folder;
 3. Create a virtual environment with `python3 -m venv .venv`;
 4. Install the dependencies with `.venv/bin/pip install -r requirements.txt`;
-5. Execute `.venv/bin/python runTCT.py`.
+5. Execute `.venv/bin/python runCTC.py`.
 
 ### Executable file
 

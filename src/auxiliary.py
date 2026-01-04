@@ -171,15 +171,15 @@ def planetographic2planetographic(arr0: np.ndarray, _):
 
 def planetocentric2planetographic(arr0: np.ndarray, obl: float = 0.):
     """ Reprojects the map from planetocentric to planetographic latitude system """
-    phi0 = latitudes(arr0.shape[2])
+    phi0 = latitudes(arr0.shape[-1])
     phi1 = np.arctan(np.tan(phi0) * (1-obl)**2)
     arr1 = interp1d(phi0, arr0, kind='cubic', fill_value='extrapolate')(phi1)
     return arr1
 
 def equal_area2planetographic(arr0: np.ndarray, obl: float = 0.):
     """ Reprojects the map from equal-area (Lambert) to planetographic latitude system """
-    phi0 = latitudes(ceil(arr0.shape[2]))
-    phi1 = latitudes(ceil(arr0.shape[2] * 0.5 * np.pi))
+    phi0 = latitudes(ceil(arr0.shape[-1]))
+    phi1 = latitudes(ceil(arr0.shape[-1] * 0.5 * np.pi))
     phi1 = np.sin(phi1) * 0.5 * np.pi
     if obl != 0.:
         phi1 = np.arctan(np.tan(phi1) * (1-obl)**2)
@@ -246,6 +246,8 @@ class ImageArray:
             self.undo_gamma_correction()
         # Reprojection if the original image's latitude system is not planetographic
         self.values = latitude_systems_dict[latitude_system](self.values, oblateness)
+        if self.alpha is not None:
+            self.alpha = latitude_systems_dict[latitude_system](self.alpha, oblateness)
 
     def get_array(self):
         """ Returns combined arrays of brightness values and alpha channel """
@@ -303,12 +305,17 @@ class ImageArray:
         so that the mean brightnesses match the given color.
         """
         other = deepcopy(self)
-        if self.is_grayscale:
-            arr = extend(self.values / self.mean_brightness(), 3) # grayscale to RGB
-            other.is_grayscale = False
+        other.is_grayscale = False
+        mean_brightness = self.mean_brightness()
+        if (self.is_grayscale and mean_brightness == 0) or 0 in mean_brightness:
+            # Avoiding division by zero by filling the target value
+            arr = np.ones_like(self.values)
         else:
-            arr = self.values / self.mean_brightness().reshape((3, 1, 1)) # to match the shape
-        other.values = arr * color_target.reshape((3, 1, 1)) # to match the shape
+            if self.is_grayscale:
+                arr = extend(self.values / self.mean_brightness(), 3) # grayscale to RGB
+            else:
+                arr = self.values / self.mean_brightness().reshape((3, 1, 1))
+        other.values = arr * color_target.reshape((3, 1, 1))
         return other
 
     def calibrate_albedo(self, albedo_target: float):
@@ -325,7 +332,11 @@ class ImageArray:
             reference_channel = self.values[1] # green
         mean_value = np.sum(reference_channel * weights) / weights.sum()
         other = deepcopy(self)
-        other.values = self.values / mean_value * albedo_target
+        if mean_value == 0:
+            # Avoiding division by zero by filling the target value
+            other.values = np.full_like(self.values, albedo_target)
+        else:
+            other.values = self.values / mean_value * albedo_target
         return other
 
     def apply_gamma_correction(self):

@@ -40,12 +40,9 @@ def launch_window():
     logger = gui.create_logger(window, '-Thread-')
 
     # Creating the default working object
-    black_rectangle = Image.fromarray(np.zeros(preview_size, dtype='uint8'))
+    black_rectangle = Image.fromarray(np.zeros(preview_size, dtype='uint8').T)
     image = black_rectangle
     preview = black_rectangle
-
-    # List of events when the preview should not be updated
-    blacklist = ('-SaveFileName-',)
 
     # Window events loop
     while True:
@@ -102,7 +99,7 @@ def launch_window():
                 window['-OutputPreview-'].update(data=output_preview_arr.to_bytes())
 
         # Preview processing
-        elif event not in blacklist:
+        elif event != '-SaveFileName-':
             preview_arr = aux.ImageArray(
                 preview,
                 values['-IsGammaCorrected-'],
