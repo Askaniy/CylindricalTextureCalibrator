@@ -19,13 +19,17 @@ def launch_window():
     oblateness = 0
 
     # Loading the icon
-    with open('src/images/icon', 'rb') as file:
+    with open('src/window/icon', 'rb') as file:
         icon = file.read()
+
+    # Loading the window title (program name + version)
+    with open('src/window/title.txt', 'rb') as file:
+        window_title = file.readline().decode().strip()
 
     # Launching window
     sg.theme('MaterialDark')
     window = sg.Window(
-        'Cylindrical Texture Calibrator', icon=icon, finalize=True, resizable=True,
+        title=window_title, icon=icon, finalize=True, resizable=True,
         layout=gui.generate_layout(
             preview_size, is_gamma_corrected, latitude_systems, default_latitude_system,
             is_cylindrical_map, is_latitude_converted, oblateness
