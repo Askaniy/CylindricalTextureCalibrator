@@ -11,9 +11,11 @@ def launch_window():
     # GUI configuration
     preview_size = (256, 128)
     preview_area = preview_size[0]*preview_size[1]
+    is_gamma_corrected = False
     is_cylindrical_map = True
-    is_latitude_converted = False
     latitude_systems = tuple(aux.latitude_systems_dict.keys())
+    default_latitude_system = latitude_systems[0]
+    is_latitude_converted = False
     oblateness = 0
 
     # Loading the icon
@@ -25,22 +27,21 @@ def launch_window():
     window = sg.Window(
         'Cylindrical Texture Calibrator', icon=icon, finalize=True, resizable=True,
         layout=gui.generate_layout(
-            preview_size, latitude_systems, is_cylindrical_map, is_latitude_converted, oblateness
+            preview_size, is_gamma_corrected, latitude_systems, default_latitude_system,
+            is_cylindrical_map, is_latitude_converted, oblateness
         )
     )
 
-    # GUI setup
+    # Console logger for the parallel processing thread
     logger = gui.create_logger(window, '-Thread-')
-    image = preview = None
 
     # Creating the default working object
-    black_rectangle = np.zeros(preview_size, dtype='uint8')
-    img_arr = aux.ImageArray(Image.fromarray(black_rectangle), is_cylindrical_map, oblateness)
+    black_rectangle = Image.fromarray(np.zeros(preview_size, dtype='uint8'))
+    image = black_rectangle
+    preview = black_rectangle
 
-    mean_brightness_triggers = (
-        '-OpenFileName-', '-IsGammaCorrected-', '-IsCylindricalMap-',
-        '-LatitudeSystemInput-', '-OblatenessInput-'
-    )
+    # List of events when the preview should not be updated
+    blacklist = ('-SaveFileName-',)
 
     # Window events loop
     while True:
@@ -51,7 +52,7 @@ def launch_window():
 
         # The checkbox causes updates for GUI elements
         # LatitudeSystem is used only if the input is a cylindrical map
-        # Oblateness is used only if the latitude system needs convertion to planetographic
+        # Oblateness is used only if the latitude system needs conversion to planetographic
         elif event in ('-IsCylindricalMap-', '-LatitudeSystemInput-'):
             is_cylindrical_map = values['-IsCylindricalMap-']
             is_latitude_converted = is_cylindrical_map and (values['-LatitudeSystemInput-'] is not latitude_systems[0])
@@ -59,42 +60,29 @@ def launch_window():
             window['-OblatenessText-'].update(text_color=gui.text_colors[not is_latitude_converted])
             window['-OblatenessInput-'].update(disabled=not is_latitude_converted)
             window['-PlanetographicLatitudesText-'].update(gui.planetographic_latitudes_texts[is_latitude_converted])
-            img_arr.is_cylindrical_map = is_cylindrical_map
 
         # Opening a file starts processing thread
         elif event == '-OpenFileName-':
             image, preview = aux.image_reader(values['-OpenFileName-'], preview_area)
-            img_arr = aux.ImageArray(image, values['-IsCylindricalMap-'], values['-OblatenessInput-'])
-
-            window.start_thread(
-                lambda: aux.image_parser(preview,
-                    preview_flag=True,
-                    oblateness=aux.float_parser(values['-OblatenessInput-']),
-                    latitude_system=values['-LatitudeSystemInput-'],
-                    shift=aux.float_parser(values['-ShiftInput-']) if values['-ShiftCheckbox-'] else None,
-                    color_target=aux.color_parser(values['-ColorInput-']) if values['-ColorCheckbox-'] else None,
-                    albedo_target=aux.float_parser(values['-AlbedoInput-']) if values['-AlbedoCheckbox-'] else None,
-                    sRGB_gamma=values['-srgbGammaCheckbox-'],
-                    #custom_gamma=aux.float_parser(values['-GammaInput-']) if values['-CustomGammaCheckbox-'] else None,
-                    maximize_brightness=values['-MaximizeBrightnessCheckbox-'],
-                    grid=values['-GridCheckbox-'],
-                    log=logger
-                )
-            )
             window['-InputPreview-'].update(data=aux.img2bytes(preview))
 
         elif event == '-SaveFileName-':
+            image_arr = aux.ImageArray(
+                image,
+                values['-IsGammaCorrected-'],
+                values['-IsCylindricalMap-'],
+                values['-LatitudeSystemInput-'],
+                aux.float_parser(values['-OblatenessInput-'])
+            )
             if image is not None:
                 window.start_thread(
-                    lambda: aux.image_parser(image,
+                    lambda: aux.image_parser(
+                        image_arr,
                         save_file=values['-SaveFileName-'],
-                        oblateness=aux.float_parser(values['-OblatenessInput-']),
-                        latitude_system=values['-LatitudeSystemInput-'],
                         shift=aux.float_parser(values['-ShiftInput-']) if values['-ShiftCheckbox-'] else None,
                         color_target=aux.color_parser(values['-ColorInput-']) if values['-ColorCheckbox-'] else None,
                         albedo_target=aux.float_parser(values['-AlbedoInput-']) if values['-AlbedoCheckbox-'] else None,
                         sRGB_gamma=values['-srgbGammaCheckbox-'],
-                        #custom_gamma=aux.float_parser(values['-GammaInput-']) if values['-CustomGammaCheckbox-'] else None,
                         maximize_brightness=values['-MaximizeBrightnessCheckbox-'],
                         grid=values['-GridCheckbox-'],
                         log=logger
@@ -102,30 +90,35 @@ def launch_window():
                 )
 
         # Getting messages from image processing thread
-        elif event[0] == '-Thread-':
+        if event[0] == '-Thread-':
             print(event[1])
             if values[event] is not None:
-                window['-OutputPreview-'].update(data=aux.img2bytes(values[event]))
+                output_preview_arr = values[event]
+                window['-OutputRGB-'].update(output_preview_arr.formatted_mean_brightness())
+                window['-OutputPreview-'].update(data=output_preview_arr.to_bytes())
 
         # Preview processing
-        elif preview is not None:
+        elif event not in blacklist:
+            preview_arr = aux.ImageArray(
+                preview,
+                values['-IsGammaCorrected-'],
+                values['-IsCylindricalMap-'],
+                values['-LatitudeSystemInput-'],
+                aux.float_parser(values['-OblatenessInput-'])
+            )
+            window['-InputRGB-'].update(preview_arr.formatted_mean_brightness())
             window.start_thread(
-                lambda: aux.image_parser(preview,
+                lambda: aux.image_parser(
+                    preview_arr,
                     preview_flag=True,
-                    oblateness=aux.float_parser(values['-OblatenessInput-']),
-                    latitude_system=values['-LatitudeSystemInput-'],
                     shift=aux.float_parser(values['-ShiftInput-']) if values['-ShiftCheckbox-'] else None,
                     color_target=aux.color_parser(values['-ColorInput-']) if values['-ColorCheckbox-'] else None,
                     albedo_target=aux.float_parser(values['-AlbedoInput-']) if values['-AlbedoCheckbox-'] else None,
                     sRGB_gamma=values['-srgbGammaCheckbox-'],
-                    #custom_gamma=aux.float_parser(values['-GammaInput-']) if values['-CustomGammaCheckbox-'] else None,
                     maximize_brightness=values['-MaximizeBrightnessCheckbox-'],
                     grid=values['-GridCheckbox-'],
                     log=logger
                 )
             )
-
-        if event in mean_brightness_triggers:
-            window['-InputRGB-'].update(img_arr.formatted_mean_brightness())
 
     window.close()

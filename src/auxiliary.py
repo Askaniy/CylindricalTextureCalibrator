@@ -39,7 +39,7 @@ def to_supported_mode(mode: str):
 def color_depth(mode: str):
     """ Corresponds the image mode of the Pillow library and its bitness """
     match mode:
-        case 'RGB' | 'L':
+        case 'RGB' | 'RGBA' | 'L' | 'LA':
             # 8-bit int
             return 255
         case 'I':
@@ -95,20 +95,12 @@ def color_parser(color: str) -> np.ndarray | None:
     except Exception:
         return None
 
-def float_parser(string: str) -> float | None:
+def float_parser(string: str) -> float:
     """ Ensures adequate processing of user input of float value """
     try:
         return float(eval(string, None))
     except Exception:
-        return None
-
-def gamma_correction(arr0: np.ndarray) -> np.ndarray:
-    """ Applies gamma correction in CIE sRGB implementation to the array """
-    arr1 = np.copy(arr0)
-    mask = arr0 < 0.0031308
-    arr1[mask] *= 12.92
-    arr1[~mask] = 1.055 * np.power(arr1[~mask], 1./2.4) - 0.055
-    return arr1
+        return 0.
 
 def latitudes(y_len: int):
     """ Returns array of latitudes in radians """
@@ -119,89 +111,27 @@ def extend(arr: np.ndarray, times: int):
     """ Adds a new zero axis to the array and repeats along it the specified number of times """
     return np.repeat(np.expand_dims(arr, axis=0), times, axis=0)
 
-def map_weights(shape: tuple, obl: float = 0.):
+def map_weights(width: int, height: int, obl: float = 0.):
     """
-    Returns an area contribution map for a planetographic latitude system of an oblate spheroid.
-    The last two values of `shape` should be X and Y lengths.
+    Returns an area contribution map for a planetographic latitude system
+    of an oblate spheroid.
     """
     try:
         if obl == 1:
             # An outgrown case
-            area = np.zeros(shape[-1])
+            area = np.zeros(height)
             area[0] = 1.
             area[-1] = 1.
         else:
-            phi = latitudes(shape[-1])
+            phi = latitudes(height)
             # Eccentricity squared
             e2 = obl * (2 - obl)
             # Area weights based on planetographic oblate spheroid metric tensor
             area = (1 - e2) * np.cos(phi) / (1 - e2 * np.sin(phi)**2)**2
     except Exception:
-        area = np.ones(shape[1])
-    return extend(area, shape[-2]) # along X axis
-
-def separate_alpha(arr: np.ndarray) -> tuple[np.ndarray, np.ndarray | None]:
-    """
-    Separates image and alpha channel, handling grayscale and color images.
-    Returns None in place of the alpha channel if there is none.
-    """
-    alpha = None
-    if arr.shape[0] == 2:
-        # grayscale image
-        alpha = arr[1]
-        arr = arr[0]
-    elif arr.shape[0] == 4:
-        # color image
-        alpha = arr[3]
-        arr = arr[:3]
-    return arr, alpha
-
-def color_calibrator(arr: np.ndarray, color: np.ndarray, obl: float = 0):
-    """
-    Scales the channels so that the average brightnesses match the given color.
-    The alpha channel is read as a mask.
-    """
-    # Alpha channel separation
-    arr, alpha = separate_alpha(arr)
-    # Calculating cylindrical map weights
-    weights = map_weights(arr.shape, obl)
-    if alpha is not None:
-        weights *= alpha
-    if arr.ndim == 2:
-        # if grayscale image
-        average = np.sum(arr * weights) / weights.sum()
-        arr = extend(arr / average, 3)
-    else:
-        # if color image
-        average = np.sum(arr * weights[np.newaxis, ...], axis=(1, 2)) / weights.sum()
-        arr /= average.reshape((3, 1, 1))
-    # Recoloring the image
-    arr *= color.reshape((3, 1, 1))
-    # Returning alpha channel
-    if alpha is not None:
-        arr = np.vstack([arr, alpha[None]])
-    return arr
-
-def albedo_calibrator(arr: np.ndarray, albedo: float, obl: float = 0) -> np.ndarray:
-    """
-    Scales the channels so that the green channel brightness corresponds to the albedo.
-    The alpha channel is read as a mask.
-    """
-    # Alpha channel separation
-    arr, alpha = separate_alpha(arr)
-    # Calculating cylindrical map weights
-    weights = map_weights(arr.shape, obl)
-    if alpha is not None:
-        weights *= alpha
-    # Calculating weighted average
-    reference_channel = arr if arr.ndim == 2 else arr[1]
-    average = np.sum(reference_channel * weights) / weights.sum()
-    # Rescaling the image
-    arr = arr / average * albedo
-    # Returning alpha channel
-    if alpha is not None:
-        arr = np.vstack([arr, alpha[None]])
-    return arr
+        area = np.ones(height)
+    result = extend(area, width) # along X axis
+    return result
 
 def generate_grid_layer(shape: tuple, divisions: int) -> np.ndarray:
     """
@@ -234,35 +164,6 @@ def generate_grid(shape: tuple) -> np.ndarray:
     scale15deg = extend(generate_grid_layer(shape, 16), 3) * np.reshape([1, 0, 0], (3, 1, 1))
     return scale15deg + scale30deg + scale90deg
 
-def add_grid(arr: np.ndarray) -> np.ndarray:
-    """ Adds a coordinate grid to the image array """
-    # Alpha channel separation
-    arr, alpha = separate_alpha(arr)
-    if arr.ndim == 2:
-        # if grayscale image
-        arr = extend(arr, 3)
-    # Adding the grid
-    grid = generate_grid(arr[0].shape)
-    mask = grid.max(axis=0)
-    arr = arr * (1 - mask) + grid * mask
-    # Returning alpha channel
-    if alpha is not None:
-        alpha = np.clip(alpha + mask, 0, 1)
-        arr = np.vstack([arr, alpha[None]])
-    return arr
-
-# Exponent constant
-_imag_2pi = -1j*2*np.pi
-
-def subpixel_shift(arr: np.ndarray, shift: float):
-    """ Subpixel longitude shift, uses the Fast Fourier Transform """
-    shift /= 360 # degrees to fraction
-    # -2 is longitude axis index place (1 for color mode and 0 for grayscale)
-    x_len = arr.shape[-2]
-    freq = np.fft.fftfreq(x_len)[:, np.newaxis] * shift * x_len
-    kernel = np.exp(_imag_2pi * freq)
-    arr = np.nan_to_num(arr)
-    return np.real(np.fft.ifftn(np.fft.fftn(arr, axes=(-2,)) * kernel, axes=(-2,)))
 
 def planetographic2planetographic(arr0: np.ndarray, _):
     """ Does nothing """
@@ -292,15 +193,34 @@ latitude_systems_dict = {
 }
 
 
-
 class ImageArray:
     """
     Class that operates with an array of image values,
     its alpha channel, and other image proprieties.
+
+    Attributes:
+    - values
+    - alpha
+    - is_grayscale
+    - is_cylindrical_map
+    - oblateness
+    - width
+    - height
+    - size
     """
 
-    def __init__(self, img: Image.Image, is_cylindrical_map: bool, oblateness: int|float) -> None:
-        """ Creates an ImageArray from the Pillow image """
+    def __init__(
+            self,
+            img: Image.Image,
+            is_gamma_corrected: bool,
+            is_cylindrical_map: bool,
+            latitude_system: str,
+            oblateness: int|float
+        ) -> None:
+        """
+        Creates an ImageArray from the Pillow image
+        and applies preprocessing steps
+        """
         self.values = img2array(img)
         # Separating values and alpha, if needed
         if len(self.values.shape) == 2:
@@ -321,28 +241,40 @@ class ImageArray:
         self.is_cylindrical_map = is_cylindrical_map
         self.oblateness = oblateness
         self.is_grayscale = self.values.ndim == 2
+        # Linearization if the original image is already gamma corrected
+        if is_gamma_corrected:
+            self.undo_gamma_correction()
+        # Reprojection if the original image's latitude system is not planetographic
+        self.values = latitude_systems_dict[latitude_system](self.values, oblateness)
 
-    def to_image(self):
-        """ Creates a Pillow image from the ImageArray """
-        # TODO: save in 16 bit? edit meta data, set gamma correction?
+    def get_array(self):
+        """ Returns combined arrays of brightness values and alpha channel """
         if self.alpha is None:
             arr = self.values
         else:
             arr = np.vstack((self.values, self.alpha[None]))
-        return Image.fromarray(np.round(np.clip(arr, 0, 1) * 255).astype('uint8').transpose())
+        return arr
+
+    def to_image(self):
+        """ Creates a Pillow image from the ImageArray """
+        # TODO: save in 16 bit? edit meta data, set gamma correction?
+        return Image.fromarray(np.round(np.clip(self.get_array(), 0, 1) * 255).astype('uint8').transpose())
+
+    def to_bytes(self):
+        """ Prepares ImageArray to be displayed in the window """
+        return img2bytes(self.to_image())
 
     def weights(self):
         """
         Calculates 2D array of brightness contribution weights,
         accounting image proprieties and the alpha channel.
         """
-        # TODO: take the latitude system into account?
         if self.is_cylindrical_map:
-            # latitude-dependent distribution
-            weights = map_weights(self.values.shape, self.oblateness)
+            # latitude-dependent distribution (planetographic)
+            weights = map_weights(self.width, self.height, self.oblateness)
         else:
             # uniform distribution
-            weights = np.ones_like(self.values)
+            weights = np.ones((self.width, self.height))
         if self.alpha is not None:
             weights *= self.alpha
         return weights
@@ -359,10 +291,10 @@ class ImageArray:
 
     def formatted_mean_brightness(self) -> str:
         if self.is_grayscale:
-            text = f'Mean brightness: {self.mean_brightness():.3f}'
+            text = f'Mean brightness: {self.mean_brightness():.5f}'
         else:
             r, g, b = self.mean_brightness()
-            text = f'Mean RGB: ({r:.3f}, {g:.3f}, {b:.3f})'
+            text = f'Mean RGB: ({r:.5f}, {g:.5f}, {b:.5f})'
         return text
 
     def calibrate_color(self, color_target: np.ndarray):
@@ -370,11 +302,12 @@ class ImageArray:
         Creates a new ImageArray object with scaled channels
         so that the mean brightnesses match the given color.
         """
+        other = deepcopy(self)
         if self.is_grayscale:
             arr = extend(self.values / self.mean_brightness(), 3) # grayscale to RGB
+            other.is_grayscale = False
         else:
             arr = self.values / self.mean_brightness().reshape((3, 1, 1)) # to match the shape
-        other = deepcopy(self)
         other.values = arr * color_target.reshape((3, 1, 1)) # to match the shape
         return other
 
@@ -395,20 +328,97 @@ class ImageArray:
         other.values = self.values / mean_value * albedo_target
         return other
 
+    def apply_gamma_correction(self):
+        """
+        Creates a new ImageArray object with applied gamma correction
+        in CIE sRGB implementation.
+        """
+        mask = self.values < 0.0031308
+        other = deepcopy(self)
+        other.values[mask] *= 12.92
+        other.values[~mask] = 1.055 * np.power(self.values[~mask], 1./2.4) - 0.055
+        return other
+
+    def undo_gamma_correction(self):
+        """ Applies inverse gamma correction in CIE sRGB implementation """
+        mask = np.copy(self.values) <= 0.04045
+        self.values[mask] /= 12.92
+        self.values[~mask] = np.power((self.values[~mask] + 0.055) / 1.055, 2.4)
+
+    def maximize_brightness(self):
+        """ Creates a new ImageArray object with brightness being maximized """
+        max_value = self.values.max()
+        if max_value != 0:
+            other = deepcopy(self)
+            other.values /= max_value
+            return other
+        else:
+            return self
+
+    # Exponent constant
+    __imag_2pi = -1j*2*np.pi
+
+    def subpixel_shift(self, shift: float):
+        """
+        Creates a new ImageArray object with applied subpixel longitude shift
+        in degrees, using the Fast Fourier Transform.
+        """
+        shift /= 360 # degrees to fraction
+        freq = np.fft.fftfreq(self.width)[:, np.newaxis] * shift * self.width
+        kernel = np.exp(self.__imag_2pi * freq)
+        other = deepcopy(self)
+        other.values = np.real(np.fft.ifftn(np.fft.fftn(self.values, axes=(-2,)) * kernel, axes=(-2,)))
+        if self.alpha is not None:
+            other.alpha = np.real(np.fft.ifftn(np.fft.fftn(self.alpha, axes=(-2,)) * kernel, axes=(-2,)))
+        return other
+
+    def add_grid(self):
+        """ Creates a new ImageArray object with added coordinate grid """
+        other = deepcopy(self)
+        if self.is_grayscale:
+            other.values = extend(self.values, 3) # grayscale to RGB
+            other.is_grayscale = False
+        # Adding the grid
+        grid = generate_grid(other.values[0].shape)
+        mask = grid.max(axis=0)
+        other.values = self.values * (1 - mask) + grid * mask
+        # Removing lines transparency
+        if self.alpha is not None:
+            other.alpha = np.clip(self.alpha + mask, 0, 1)
+        return other
+
+    @property
+    def width(self):
+        """ Returns horizontal spatial axis length """
+        if self.is_grayscale:
+            return self.values.shape[0]
+        else:
+            return self.values.shape[1]
+
+    @property
+    def height(self):
+        """ Returns vertical spatial axis length """
+        if self.is_grayscale:
+            return self.values.shape[1]
+        else:
+            return self.values.shape[2]
+
+    @property
+    def size(self):
+        """ Returns the number of pixels """
+        return self.width * self.height
+
 
 
 
 def image_parser(
-        img: Image.Image,
+        img_arr: ImageArray,
         preview_flag: bool = False,
         save_file: str = '',
-        latitude_system: str = 'planetographic',
-        shift: int|float = 0,
-        oblateness: int|float = 0,
+        shift: int|float = None,
         albedo_target: float = None,
         color_target: np.ndarray = None,
         sRGB_gamma: bool = False,
-        #custom_gamma: float = None,
         maximize_brightness: bool = False,
         grid: bool = False,
         log: Callable = print
@@ -417,28 +427,24 @@ def image_parser(
     if not preview_flag:
         start_time = monotonic()
     try:
-        arr = img2array(img)
-        arr = latitude_systems_dict[latitude_system](arr, oblateness)
-        if shift != 0:
-            arr = subpixel_shift(arr, shift)
+        if shift is not None and shift != 0:
+            img_arr = img_arr.subpixel_shift(shift)
         if color_target is not None:
-            arr = color_calibrator(arr, color_target, oblateness)
+            img_arr = img_arr.calibrate_color(color_target)
         if albedo_target is not None:
-            arr = albedo_calibrator(arr, albedo_target, oblateness)
+            img_arr = img_arr.calibrate_albedo(albedo_target)
         if sRGB_gamma:
-            arr = gamma_correction(arr)
-        #if custom_gamma is not None:
-        #    arr **= custom_gamma
-        if maximize_brightness and arr.max() != 0:
-            arr /= arr.max()
+            img_arr = img_arr.apply_gamma_correction()
+        if maximize_brightness:
+            img_arr = img_arr.maximize_brightness()
         if grid:
-            arr = add_grid(arr)
-        img = array2img(arr)
+            img_arr = img_arr.add_grid()
         if preview_flag:
-            log('Preview is ready', img)
+            log('Preview is ready', img_arr)
         else:
+            img = img_arr.to_image()
             time = monotonic() - start_time
-            speed = img.width * img.height / time
+            speed = img_arr.width * img_arr.height / time
             log(f'Processing took {time:.1f} seconds, average speed is {speed:.1f} px/sec')
             try:
                 img.save(save_file)

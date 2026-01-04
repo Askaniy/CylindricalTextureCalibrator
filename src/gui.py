@@ -31,7 +31,9 @@ def create_logger(window: sg.Window, key: str) -> Callable:
 
 def generate_layout(
         img_preview_size: tuple[int, int],
+        is_gamma_corrected: bool,
         latitude_systems: tuple[str, ...],
+        default_latitude_system: str,
         is_cylindrical_map: bool,
         is_latitude_converted: bool,
         oblateness: int|float
@@ -49,18 +51,18 @@ def generate_layout(
         [
             sg.Push(),
             sg.Input(
-                'RGB = NaN, NaN, NaN', size=12,
+                'Linear input brightness will be here', size=36,
                 readonly=True, disabled_readonly_background_color=inputOFF_color,
                 key='-InputRGB-', expand_x=True
             ),
             sg.Push()
         ],
         [sg.T('')],
-        [sg.Checkbox('Is gamma corrected (CIE sRGB)', enable_events=True, key='-IsGammaCorrected-')],
+        [sg.Checkbox('Is gamma corrected (CIE sRGB)', default=is_gamma_corrected, enable_events=True, key='-IsGammaCorrected-')],
         [sg.Checkbox('Is a cylindrical map', default=is_cylindrical_map, enable_events=True, key='-IsCylindricalMap-')],
         [
             sg.Text('Latitude system:', text_color=text_colors[not is_cylindrical_map], key='-LatitudeSystemText-'),
-            sg.Combo(latitude_systems, default_value=latitude_systems[0], enable_events=True, key='-LatitudeSystemInput-'),
+            sg.Combo(latitude_systems, default_value=default_latitude_system, enable_events=True, key='-LatitudeSystemInput-'),
         ],
         [
             sg.Text('Oblateness (1 − b/a)', text_color=text_colors[not is_latitude_converted], key='-OblatenessText-'),
@@ -79,7 +81,7 @@ def generate_layout(
             sg.Input('180', size=12, enable_events=True, key='-ShiftInput-', expand_x=True),
         ],
         [
-            sg.Checkbox('Calibrate by color', enable_events=True, key='-ColorCheckbox-'),
+            sg.Checkbox('Calibrate by linear color', enable_events=True, key='-ColorCheckbox-'),
             sg.Input('0.5 0.5 0.5', size=12, enable_events=True, key='-ColorInput-', expand_x=True),
         ],
         [
@@ -106,9 +108,8 @@ def generate_layout(
         [sg.Push(), sg.Image(background_color=None, size=img_preview_size, key='-OutputPreview-'), sg.Push()],
         [
             sg.Push(),
-            sg.Text('RGB ='),
             sg.Input(
-                '(NaN, NaN, NaN)', size=12,
+                'Final brightness will be here', size=36,
                 readonly=True, disabled_readonly_background_color=inputOFF_color,
                 key='-OutputRGB-', expand_x=True
             ),
